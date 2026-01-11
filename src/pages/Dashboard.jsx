@@ -4,6 +4,8 @@ import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { getUserShows, getWatchedEpisodes } from '../services/supabase'
 import { getAiringToday, getTrendingShows, getShowDetails } from '../services/tmdb'
+import { addUserShow } from '../services/supabase'
+import { WATCH_STATUS } from '../utils/constants'
 import ShowCard from '../components/common/ShowCard'
 import Skeleton, { ShowCardSkeleton } from '../components/common/Skeleton'
 
@@ -21,6 +23,8 @@ export default function Dashboard() {
   const [airingToday, setAiringToday] = useState([])
   const [trending, setTrending] = useState([])
   const [watchingShowsData, setWatchingShowsData] = useState({})
+  const { addShow } = useShowStore()
+  const [addingId, setAddingId] = useState(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,6 +70,28 @@ export default function Dashboard() {
 
     fetchData()
   }, [user, setUserShows])
+
+  const handleAddToList = async (tmdbShowId) => {
+    if (!user) return
+
+    setAddingId(tmdbShowId)
+    try {
+      await addUserShow(user.id, tmdbShowId, WATCH_STATUS.PLAN_TO_WATCH)
+      const newShow = {
+        user_id: user.id,
+        tmdb_show_id: tmdbShowId,
+        status: WATCH_STATUS.PLAN_TO_WATCH,
+        user_rating: 0,
+        is_favorite: false,
+        notes: '',
+      }
+      addShow(newShow)
+    } catch (error) {
+      console.error('Error adding show to list:', error)
+    } finally {
+      setAddingId(null)
+    }
+  }
 
   const watchingShows = userShows.filter((s) => s.status === 'watching')
   const planToWatch = userShows.filter((s) => s.status === 'plan_to_watch')
@@ -162,7 +188,9 @@ export default function Dashboard() {
                 <ShowCard
                   key={showData.id}
                   show={showData}
-                  userShow={section.showsData ? item : null}
+                  userShow={userShows.find(s => s.tmdb_show_id === showData.id)}
+                  onAdd={handleAddToList}
+                  isAdding={addingId === showData.id}
                 />
               );
             })}

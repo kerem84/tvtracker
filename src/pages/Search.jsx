@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { searchShows } from '../services/tmdb'
 import ShowCard from '../components/common/ShowCard'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
+import { useAuth } from '../hooks/useAuth'
+import { useShowStore } from '../store/showStore'
+import { addUserShow } from '../services/supabase'
+import { WATCH_STATUS } from '../utils/constants'
 
 export default function Search() {
   const navigate = useNavigate()
@@ -10,6 +14,9 @@ export default function Search() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const { user } = useAuth()
+  const { userShows, addShow } = useShowStore()
+  const [addingId, setAddingId] = useState(null)
 
   const handleSearch = async (e) => {
     e.preventDefault()
@@ -25,6 +32,31 @@ export default function Search() {
       console.error('Search error:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAddToList = async (tmdbShowId) => {
+    if (!user) {
+      alert('Listeye eklemek için giriş yapmalısınız')
+      return
+    }
+
+    setAddingId(tmdbShowId)
+    try {
+      await addUserShow(user.id, tmdbShowId, WATCH_STATUS.PLAN_TO_WATCH)
+      const newShow = {
+        user_id: user.id,
+        tmdb_show_id: tmdbShowId,
+        status: WATCH_STATUS.PLAN_TO_WATCH,
+        user_rating: 0,
+        is_favorite: false,
+        notes: '',
+      }
+      addShow(newShow)
+    } catch (error) {
+      console.error('Error adding show to list:', error)
+    } finally {
+      setAddingId(null)
     }
   }
 
@@ -91,7 +123,12 @@ export default function Search() {
             ) : (
               results.map((show, idx) => (
                 <div key={show.id} className="animate-slide-up" style={{ animationDelay: `${idx * 50}ms` }}>
-                  <ShowCard show={show} />
+                  <ShowCard
+                    show={show}
+                    userShow={userShows.find(s => s.tmdb_show_id === show.id)}
+                    onAdd={handleAddToList}
+                    isAdding={addingId === show.id}
+                  />
                 </div>
               ))
             )}

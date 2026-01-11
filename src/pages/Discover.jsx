@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { getPopularShows, getTrendingShows, getOnTheAir, getGenres, getShowsByGenre } from '../services/tmdb'
 import ShowCard from '../components/common/ShowCard'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
+import { useAuth } from '../hooks/useAuth'
+import { useShowStore } from '../store/showStore'
+import { addUserShow } from '../services/supabase'
+import { WATCH_STATUS } from '../utils/constants'
 
 export default function Discover() {
   const [popular, setPopular] = useState([])
@@ -14,6 +18,9 @@ export default function Discover() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('trending')
   const [pages, setPages] = useState({ trending: 1, popular: 1, onTheAir: 1, genre: 1 })
+  const { user } = useAuth()
+  const { userShows, addShow } = useShowStore()
+  const [addingId, setAddingId] = useState(null)
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -89,6 +96,31 @@ export default function Discover() {
       console.error('Error loading more:', error)
     } finally {
       setLoadingMore(false)
+    }
+  }
+
+  const handleAddToList = async (tmdbShowId) => {
+    if (!user) {
+      alert('Listeye eklemek için giriş yapmalısınız')
+      return
+    }
+
+    setAddingId(tmdbShowId)
+    try {
+      await addUserShow(user.id, tmdbShowId, WATCH_STATUS.PLAN_TO_WATCH)
+      const newShow = {
+        user_id: user.id,
+        tmdb_show_id: tmdbShowId,
+        status: WATCH_STATUS.PLAN_TO_WATCH,
+        user_rating: 0,
+        is_favorite: false,
+        notes: '',
+      }
+      addShow(newShow)
+    } catch (error) {
+      console.error('Error adding show to list:', error)
+    } finally {
+      setAddingId(null)
     }
   }
 
@@ -183,7 +215,12 @@ export default function Discover() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 animate-slide-up">
               {activeData.map((show, idx) => (
                 <div key={`${selectedGenre ? 'genre' : activeTab}-${show.id}`} className="animate-slide-up" style={{ animationDelay: `${idx % 12 * 50}ms` }}>
-                  <ShowCard show={show} />
+                  <ShowCard
+                    show={show}
+                    userShow={userShows.find(s => s.tmdb_show_id === show.id)}
+                    onAdd={handleAddToList}
+                    isAdding={addingId === show.id}
+                  />
                 </div>
               ))}
             </div>
@@ -215,4 +252,3 @@ export default function Discover() {
     </div>
   )
 }
-

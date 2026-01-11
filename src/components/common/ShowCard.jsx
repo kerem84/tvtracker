@@ -8,7 +8,7 @@ const STATUS_COLORS = {
   [WATCH_STATUS.PLAN_TO_WATCH]: 'bg-amber-500 shadow-amber-500/30',
 }
 
-export default function ShowCard({ show, userShow = null, onAdd = null }) {
+export default function ShowCard({ show, userShow = null, onAdd = null, isAdding = false }) {
   const posterUrl = getImageUrl(show.poster_path)
   const firstAirDate = show.first_air_date
     ? new Date(show.first_air_date).getFullYear()
@@ -61,6 +61,30 @@ export default function ShowCard({ show, userShow = null, onAdd = null }) {
                   <span className="text-yellow-300">★</span>
                   {userShow.user_rating}
                 </span>
+              </div>
+            )}
+
+            {/* Quick Add Button */}
+            {!userShow && onAdd && (
+              <div className="absolute bottom-3 right-3 z-20">
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onAdd(show.id);
+                  }}
+                  disabled={isAdding}
+                  className="w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-500/30 flex items-center justify-center transition-all active:scale-90 disabled:opacity-50 group/add"
+                  title="Listeye Ekle"
+                >
+                  {isAdding ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover/add:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                    </svg>
+                  )}
+                </button>
               </div>
             )}
           </div>
