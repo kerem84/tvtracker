@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ShowCard from '../components/common/ShowCard'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
-import { useSearchShows } from '../hooks/useQueries'
+import { useInfiniteSearchShows } from '../hooks/useQueries'
 import { addUserShow } from '../services/supabase'
 import { WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
@@ -19,9 +19,17 @@ export default function Search() {
   const { userShows, addShow } = useShowStore()
   const toast = useToast()
 
-  // React Query hook for cached search results
-  const { data: searchData, isLoading: loading, isFetched: searched } = useSearchShows(searchTerm, 1)
-  const results = searchData?.results || []
+  // React Query hook for infinite search results
+  const {
+    data: searchData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: loading,
+    isFetched: searched
+  } = useInfiniteSearchShows(searchTerm)
+
+  const results = useMemo(() => searchData?.pages.flatMap(page => page.results) || [], [searchData])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -57,7 +65,7 @@ export default function Search() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12 animate-fade-in">
+    <div className="max-w-5xl mx-auto space-y-12 animate-fade-in pb-12">
       <div className="text-center space-y-6 pt-8">
         <h1 className="text-5xl font-black">
           <span className="gradient-text">Dizi Ara</span>
@@ -118,7 +126,7 @@ export default function Search() {
               [...Array(10)].map((_, i) => <ShowCardSkeleton key={i} />)
             ) : (
               results.map((show, idx) => (
-                <div key={show.id} className="animate-slide-up" style={{ animationDelay: `${idx * 50}ms` }}>
+                <div key={`${show.id}-${idx}`} className="animate-slide-up" style={{ animationDelay: `${idx % 20 * 30}ms` }}>
                   <ShowCard
                     show={show}
                     userShow={userShows.find(s => s.tmdb_show_id === show.id)}
@@ -129,6 +137,31 @@ export default function Search() {
               ))
             )}
           </div>
+
+          {/* Load More Button */}
+          {hasNextPage && !loading && (
+            <div className="flex justify-center pt-12">
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="group relative px-12 py-4 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700/50 hover:border-indigo-500/50 rounded-2xl font-black text-slate-200 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-3 shadow-xl"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                    <span>Yükleniyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Daha Fazla Göster</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:translate-y-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -150,3 +183,4 @@ export default function Search() {
     </div>
   )
 }
+

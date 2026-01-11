@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query'
 import {
     searchShows,
     getShowDetails,
@@ -90,10 +90,36 @@ export const usePopularShows = (page = 1, options = {}) => {
     })
 }
 
+export const useInfinitePopularShows = (options = {}) => {
+    return useInfiniteQuery({
+        queryKey: ['discover', 'popular', 'infinite'],
+        queryFn: ({ pageParam = 1 }) => getPopularShows(pageParam),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page < lastPage.total_pages) return lastPage.page + 1
+            return undefined
+        },
+        initialPageParam: 1,
+        ...options,
+    })
+}
+
 export const useTrendingShows = (timeWindow = 'week', page = 1, options = {}) => {
     return useQuery({
         queryKey: queryKeys.discover.trending(timeWindow, page),
         queryFn: () => getTrendingShows(timeWindow, page),
+        ...options,
+    })
+}
+
+export const useInfiniteTrendingShows = (timeWindow = 'week', options = {}) => {
+    return useInfiniteQuery({
+        queryKey: ['discover', 'trending', timeWindow, 'infinite'],
+        queryFn: ({ pageParam = 1 }) => getTrendingShows(timeWindow, pageParam),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page < lastPage.total_pages) return lastPage.page + 1
+            return undefined
+        },
+        initialPageParam: 1,
         ...options,
     })
 }
@@ -114,10 +140,37 @@ export const useOnTheAir = (page = 1, options = {}) => {
     })
 }
 
+export const useInfiniteOnTheAir = (options = {}) => {
+    return useInfiniteQuery({
+        queryKey: ['discover', 'onTheAir', 'infinite'],
+        queryFn: ({ pageParam = 1 }) => getOnTheAir(pageParam),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page < lastPage.total_pages) return lastPage.page + 1
+            return undefined
+        },
+        initialPageParam: 1,
+        ...options,
+    })
+}
+
 export const useShowsByGenre = (genreId, page = 1, options = {}) => {
     return useQuery({
         queryKey: queryKeys.discover.byGenre(genreId, page),
         queryFn: () => getShowsByGenre(genreId, page),
+        enabled: !!genreId,
+        ...options,
+    })
+}
+
+export const useInfiniteShowsByGenre = (genreId, options = {}) => {
+    return useInfiniteQuery({
+        queryKey: ['discover', 'genre', genreId, 'infinite'],
+        queryFn: ({ pageParam = 1 }) => getShowsByGenre(genreId, pageParam),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page < lastPage.total_pages) return lastPage.page + 1
+            return undefined
+        },
+        initialPageParam: 1,
         enabled: !!genreId,
         ...options,
     })
@@ -138,6 +191,20 @@ export const useSearchShows = (query, page = 1, options = {}) => {
     return useQuery({
         queryKey: queryKeys.search(query, page),
         queryFn: () => searchShows(query, page),
+        enabled: !!query && query.trim().length > 0,
+        ...options,
+    })
+}
+
+export const useInfiniteSearchShows = (query, options = {}) => {
+    return useInfiniteQuery({
+        queryKey: ['search', query, 'infinite'],
+        queryFn: ({ pageParam = 1 }) => searchShows(query, pageParam),
+        getNextPageParam: (lastPage) => {
+            if (lastPage.page < lastPage.total_pages) return lastPage.page + 1
+            return undefined
+        },
+        initialPageParam: 1,
         enabled: !!query && query.trim().length > 0,
         ...options,
     })
