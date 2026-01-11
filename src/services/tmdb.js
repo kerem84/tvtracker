@@ -1,10 +1,16 @@
-import { TMDB_CONFIG } from '../utils/constants'
+/**
+ * TMDB API Service
+ *
+ * All requests are routed through our serverless proxy (/api/tmdb)
+ * to keep the API key secure on the server-side.
+ */
 
 const fetchFromTMDB = async (endpoint, params = {}) => {
-  const url = new URL(`${TMDB_CONFIG.BASE_URL}${endpoint}`)
-  url.searchParams.append('api_key', TMDB_CONFIG.API_KEY)
-  url.searchParams.append('language', 'tr-TR')
+  // Build the proxy URL
+  const url = new URL('/api/tmdb', window.location.origin)
+  url.searchParams.append('endpoint', endpoint)
 
+  // Add other query parameters
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       url.searchParams.append(key, value)
@@ -13,7 +19,8 @@ const fetchFromTMDB = async (endpoint, params = {}) => {
 
   const response = await fetch(url)
   if (!response.ok) {
-    throw new Error(`TMDB API Error: ${response.statusText}`)
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `TMDB API Error: ${response.statusText}`)
   }
 
   return response.json()
