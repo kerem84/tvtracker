@@ -182,21 +182,34 @@ export const getUserStats = async (userId) => {
 }
 
 export const updateProfile = async (userId, updates) => {
-  // 1. Update auth metadata (if username changed)
-  if (updates.username) {
-    const { error: authError } = await supabase.auth.updateUser({
-      data: { username: updates.username }
-    })
-    if (authError) throw authError
+  const { username, avatar_url, avatar_meta } = updates
+
+  // 1. Update auth metadata (for session persistence and UI)
+  const authUpdates = {
+    username: username,
+    avatar_url: avatar_url
   }
 
-  // 2. Update users table
+  if (avatar_meta) {
+    authUpdates.avatarStyle = avatar_meta.style
+    authUpdates.avatarSeed = avatar_meta.seed
+  }
+
+  const { error: authError } = await supabase.auth.updateUser({
+    data: authUpdates
+  })
+  if (authError) throw authError
+
+  // 2. Update public users table (only existing columns)
+  const dbUpdates = {
+    username,
+    avatar_url,
+    updated_at: new Date().toISOString(),
+  }
+
   const { data, error } = await supabase
     .from('users')
-    .update({
-      ...updates,
-      updated_at: new Date().toISOString(),
-    })
+    .update(dbUpdates)
     .eq('id', userId)
     .select()
 
