@@ -3,14 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getShowDetails, getSeasonDetails } from '../services/tmdb'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
-import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow } from '../services/supabase'
+import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 
 export default function SeasonDetail() {
   const { id, num } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { userShows, updateShow, isEpisodeWatched, addWatchedEpisode: storeAddWatched, removeWatchedEpisode: storeRemoveWatched } = useShowStore()
+  const { userShows, setUserShows, updateShow, isEpisodeWatched, addWatchedEpisode: storeAddWatched, removeWatchedEpisode: storeRemoveWatched } = useShowStore()
   const [show, setShow] = useState(null)
   const [season, setSeason] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -28,9 +28,16 @@ export default function SeasonDetail() {
         setShow(showData)
         setSeason(seasonData)
 
-        // Load watched episodes for this user
+        // Load watched episodes and user shows for this user
         if (user) {
-          const watched = await getWatchedEpisodes(user.id, parseInt(id))
+          const [watched, shows] = await Promise.all([
+            getWatchedEpisodes(user.id, parseInt(id)),
+            userShows.length === 0 ? getUserShows(user.id) : Promise.resolve(userShows)
+          ])
+
+          if (userShows.length === 0) {
+            setUserShows(shows)
+          }
           useShowStore.getState().setWatchedEpisodes(parseInt(id), watched)
         }
       } catch (error) {
@@ -60,13 +67,19 @@ export default function SeasonDetail() {
         storeAddWatched(parseInt(id), parseInt(num), episodeNumber)
 
         // Auto-update status to "watching" if it's currently "plan_to_watch"
-        const currentShow = userShows.find(s => s.tmdb_show_id === parseInt(id))
+        const showIdInt = parseInt(id)
+        const currentShow = userShows.find(s => s.tmdb_show_id === showIdInt)
+
+        console.log(`[DEBUG] Auto-update check - Show ID: ${showIdInt}, Status: ${currentShow?.status}`)
+
         if (currentShow && currentShow.status === WATCH_STATUS.PLAN_TO_WATCH) {
           try {
-            await updateUserShow(user.id, parseInt(id), { status: WATCH_STATUS.WATCHING })
-            updateShow(parseInt(id), { status: WATCH_STATUS.WATCHING })
+            console.log(`[DEBUG] Updating show ${showIdInt} to "watching"...`)
+            await updateUserShow(user.id, showIdInt, { status: WATCH_STATUS.WATCHING })
+            updateShow(showIdInt, { status: WATCH_STATUS.WATCHING })
+            console.log(`[DEBUG] Auto-update successful`)
           } catch (err) {
-            console.error('Error auto-updating status:', err)
+            console.error('[DEBUG] Error auto-updating status:', err)
           }
         }
       }
@@ -88,10 +101,20 @@ export default function SeasonDetail() {
       }
 
       // After marking all, check status for the whole show
-      const currentShow = userShows.find(s => s.tmdb_show_id === parseInt(id))
+      const showIdInt = parseInt(id)
+      const currentShow = userShows.find(s => s.tmdb_show_id === showIdInt)
+
+      console.log(`[DEBUG] Mark All Auto-update check - Show ID: ${showIdInt}, Status: ${currentShow?.status}`)
+
       if (currentShow && currentShow.status === WATCH_STATUS.PLAN_TO_WATCH) {
-        await updateUserShow(user.id, parseInt(id), { status: WATCH_STATUS.WATCHING })
-        updateShow(parseInt(id), { status: WATCH_STATUS.WATCHING })
+        try {
+          console.log(`[DEBUG] Mark All: Updating show ${showIdInt} to "watching"...`)
+          await updateUserShow(user.id, showIdInt, { status: WATCH_STATUS.WATCHING })
+          updateShow(showIdInt, { status: WATCH_STATUS.WATCHING })
+          console.log(`[DEBUG] Mark All auto-update successful`)
+        } catch (err) {
+          console.error('[DEBUG] Mark All error auto-updating status:', err)
+        }
       }
     } catch (error) {
       console.error('Error marking all episodes:', error)
@@ -265,4 +288,3 @@ export default function SeasonDetail() {
     </div>
   )
 }
-
