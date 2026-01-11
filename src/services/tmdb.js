@@ -1,16 +1,42 @@
 /**
  * TMDB API Service
- *
- * All requests are routed through our serverless proxy (/api/tmdb)
- * to keep the API key secure on the server-side.
+ * 
+ * In production, requests are routed through our serverless proxy (/api/tmdb)
+ * to keep the API key secure. In development, it falls back to direct requests
+ * if the proxy is not available.
  */
 
+const TMDB_BASE_URL = 'https://api.themoviedb.org/3'
+const API_KEY = import.meta.env.VITE_TMDB_API_KEY
+
 const fetchFromTMDB = async (endpoint, params = {}) => {
-  // Build the proxy URL
+  // In development, we might want to use direct fetch if not using vercel dev
+  const isDev = import.meta.env.DEV
+
+  // Rule: If we have an API key and we are in dev, use direct fetch for convenience
+  // unless we want to test the proxy.
+  if (isDev && API_KEY) {
+    const url = new URL(`${TMDB_BASE_URL}${endpoint}`)
+    url.searchParams.append('api_key', API_KEY)
+    url.searchParams.append('language', 'tr-TR')
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, value)
+      }
+    })
+
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`TMDB API Error: ${response.statusText}`)
+    }
+    return response.json()
+  }
+
+  // Production or Proxy fallback
   const url = new URL('/api/tmdb', window.location.origin)
   url.searchParams.append('endpoint', endpoint)
 
-  // Add other query parameters
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       url.searchParams.append(key, value)
