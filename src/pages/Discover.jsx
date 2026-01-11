@@ -1,105 +1,42 @@
-import { useEffect, useState } from 'react'
-import { getPopularShows, getTrendingShows, getOnTheAir, getGenres, getShowsByGenre } from '../services/tmdb'
+import { useState } from 'react'
 import ShowCard from '../components/common/ShowCard'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
+import { usePopularShows, useTrendingShows, useOnTheAir, useGenres, useShowsByGenre } from '../hooks/useQueries'
 import { addUserShow } from '../services/supabase'
 import { WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
 
 export default function Discover() {
-  const [popular, setPopular] = useState([])
-  const [trending, setTrending] = useState([])
-  const [onTheAir, setOnTheAir] = useState([])
-  const [genres, setGenres] = useState([])
-  const [genreShows, setGenreShows] = useState([])
   const [selectedGenre, setSelectedGenre] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [activeTab, setActiveTab] = useState('trending')
-  const [pages, setPages] = useState({ trending: 1, popular: 1, onTheAir: 1, genre: 1 })
+  const [addingId, setAddingId] = useState(null)
+
   const { user } = useAuth()
   const { userShows, addShow } = useShowStore()
-  const [addingId, setAddingId] = useState(null)
   const toast = useToast()
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true)
-      try {
-        const [popularData, trendingData, onTheAirData, genresData] = await Promise.all([
-          getPopularShows(1),
-          getTrendingShows('week'),
-          getOnTheAir(1),
-          getGenres(),
-        ])
+  // React Query hooks with caching
+  const { data: popularData, isLoading: popularLoading } = usePopularShows(1)
+  const { data: trendingData, isLoading: trendingLoading } = useTrendingShows('week', 1)
+  const { data: onTheAirData, isLoading: onTheAirLoading } = useOnTheAir(1)
+  const { data: genresData } = useGenres()
+  const { data: genreShowsData, isLoading: genreLoading } = useShowsByGenre(selectedGenre?.id, 1)
 
-        setPopular(popularData.results || [])
-        setTrending(trendingData.results || [])
-        setOnTheAir(onTheAirData.results || [])
-        setGenres(genresData.genres || [])
-      } catch (error) {
-        console.error('Error fetching discover data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const popular = popularData?.results || []
+  const trending = trendingData?.results || []
+  const onTheAir = onTheAirData?.results || []
+  const genres = genresData?.genres || []
+  const genreShows = genreShowsData?.results || []
 
-    fetchInitialData()
-  }, [])
-
-  useEffect(() => {
-    const fetchGenreData = async () => {
-      if (!selectedGenre) return
-      setLoading(true)
-      try {
-        const data = await getShowsByGenre(selectedGenre.id, 1)
-        setGenreShows(data.results || [])
-        setPages(prev => ({ ...prev, genre: 1 }))
-      } catch (error) {
-        console.error('Error fetching genre data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchGenreData()
-  }, [selectedGenre])
-
-  const handleLoadMore = async () => {
-    setLoadingMore(true)
-    try {
-      let newData = []
-      if (selectedGenre) {
-        const nextPage = pages.genre + 1
-        const response = await getShowsByGenre(selectedGenre.id, nextPage)
-        newData = response.results || []
-        setGenreShows(prev => [...prev, ...newData])
-        setPages(prev => ({ ...prev, genre: nextPage }))
-      } else {
-        const nextPage = pages[activeTab] + 1
-        if (activeTab === 'trending') {
-          const response = await getTrendingShows('week', nextPage)
-          newData = response.results || []
-          setTrending(prev => [...prev, ...newData])
-        } else if (activeTab === 'popular') {
-          const response = await getPopularShows(nextPage)
-          newData = response.results || []
-          setPopular(prev => [...prev, ...newData])
-        } else if (activeTab === 'onTheAir') {
-          const response = await getOnTheAir(nextPage)
-          newData = response.results || []
-          setOnTheAir(prev => [...prev, ...newData])
-        }
-        setPages(prev => ({ ...prev, [activeTab]: nextPage }))
-      }
-    } catch (error) {
-      console.error('Error loading more:', error)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
+  const loading = selectedGenre
+    ? genreLoading
+    : activeTab === 'trending'
+      ? trendingLoading
+      : activeTab === 'popular'
+        ? popularLoading
+        : onTheAirLoading
 
   const handleAddToList = async (tmdbShowId) => {
     if (!user) {
@@ -119,8 +56,10 @@ export default function Discover() {
         notes: '',
       }
       addShow(newShow)
+      toast.success('Dizi listenize eklendi!')
     } catch (error) {
       console.error('Error adding show to list:', error)
+      toast.error('Dizi eklenirken hata oluştu')
     } finally {
       setAddingId(null)
     }
@@ -225,23 +164,6 @@ export default function Discover() {
                   />
                 </div>
               ))}
-            </div>
-
-            <div className="flex justify-center pb-10">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="btn-glow btn-primary min-w-[240px] h-14 rounded-2xl font-black text-lg shadow-indigo-500/20"
-              >
-                {loadingMore ? (
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Yükleniyor...</span>
-                  </div>
-                ) : (
-                  'Daha Fazla Göster'
-                )}
-              </button>
             </div>
           </div>
         ) : (

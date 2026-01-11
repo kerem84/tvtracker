@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getShowDetails, getSimilarShows } from '../services/tmdb'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
-import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes, addWatchedEpisode as supabaseAddWatched, removeWatchedEpisode as supabaseRemoveWatched } from '../services/supabase'
+import { useShowDetails, useSimilarShows } from '../hooks/useQueries'
+import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes } from '../services/supabase'
 import { getImageUrl, getBackdropUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useToast } from '../components/common/Toast'
@@ -11,51 +11,42 @@ import { useToast } from '../components/common/Toast'
 export default function ShowDetail() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { userShows, setUserShows, watchedEpisodes, isEpisodeWatched } = useShowStore()
-  const [show, setShow] = useState(null)
-  const [similarShows, setSimilarShows] = useState([])
+  const { userShows, setUserShows, isEpisodeWatched } = useShowStore()
+  const toast = useToast()
+
+  // React Query hooks for cached data
+  const { data: show, isLoading: showLoading } = useShowDetails(id)
+  const { data: similarData } = useSimilarShows(id)
+  const similarShows = similarData?.results || []
+
   const [userShow, setUserShow] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [addingToList, setAddingToList] = useState(false)
   const [isNoteOpen, setIsNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
-  const toast = useToast()
 
+  // Fetch user-specific data (not cached by React Query since it's user-specific)
   useEffect(() => {
-    const fetchShowData = async () => {
-      setLoading(true)
+    const fetchUserData = async () => {
+      if (!user || !id) return
+
       try {
-        const [showData, similarData] = await Promise.all([
-          getShowDetails(id),
-          getSimilarShows(id),
-        ])
+        const shows = await getUserShows(user.id)
+        const found = shows.find((s) => s.tmdb_show_id === parseInt(id))
+        setUserShow(found || null)
 
-        setShow(showData)
-        setSimilarShows(similarData.results || [])
+        const watched = await getWatchedEpisodes(user.id, parseInt(id))
+        useShowStore.getState().setWatchedEpisodes(parseInt(id), watched)
 
-        // Check if user has this show
-        if (user) {
-          const shows = await getUserShows(user.id)
-          const found = shows.find((s) => s.tmdb_show_id === parseInt(id))
-          setUserShow(found || null)
-
-          // Load watched episodes
-          const watched = await getWatchedEpisodes(user.id, parseInt(id))
-          useShowStore.getState().setWatchedEpisodes(parseInt(id), watched)
-
-          if (found) {
-            setNoteText(found.notes || '')
-          }
+        if (found) {
+          setNoteText(found.notes || '')
         }
       } catch (error) {
-        console.error('Error fetching show details:', error)
-      } finally {
-        setLoading(false)
+        console.error('Error fetching user data:', error)
       }
     }
 
-    fetchShowData()
+    fetchUserData()
   }, [id, user])
 
   const handleUpdateUserShow = async (updates) => {
@@ -89,7 +80,6 @@ export default function ShowDetail() {
 
     setAddingToList(true)
     try {
-      // Call with separate params: (userId, tmdbShowId, status)
       await addUserShow(user.id, parseInt(id), status)
 
       const newShow = {
@@ -109,7 +99,7 @@ export default function ShowDetail() {
     }
   }
 
-  if (loading) {
+  if (showLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
@@ -404,4 +394,3 @@ export default function ShowDetail() {
     </div>
   )
 }
-

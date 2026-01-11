@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { searchShows } from '../services/tmdb'
 import ShowCard from '../components/common/ShowCard'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
+import { useSearchShows } from '../hooks/useQueries'
 import { addUserShow } from '../services/supabase'
 import { WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
@@ -12,29 +12,21 @@ import { useToast } from '../components/common/Toast'
 export default function Search() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [searched, setSearched] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [addingId, setAddingId] = useState(null)
+
   const { user } = useAuth()
   const { userShows, addShow } = useShowStore()
-  const [addingId, setAddingId] = useState(null)
   const toast = useToast()
 
-  const handleSearch = async (e) => {
+  // React Query hook for cached search results
+  const { data: searchData, isLoading: loading, isFetched: searched } = useSearchShows(searchTerm, 1)
+  const results = searchData?.results || []
+
+  const handleSearch = (e) => {
     e.preventDefault()
     if (!query.trim()) return
-
-    setLoading(true)
-    setSearched(true)
-
-    try {
-      const data = await searchShows(query)
-      setResults(data.results || [])
-    } catch (error) {
-      console.error('Search error:', error)
-    } finally {
-      setLoading(false)
-    }
+    setSearchTerm(query.trim())
   }
 
   const handleAddToList = async (tmdbShowId) => {
@@ -55,8 +47,10 @@ export default function Search() {
         notes: '',
       }
       addShow(newShow)
+      toast.success('Dizi listenize eklendi!')
     } catch (error) {
       console.error('Error adding show to list:', error)
+      toast.error('Dizi eklenirken hata oluştu')
     } finally {
       setAddingId(null)
     }
@@ -99,12 +93,12 @@ export default function Search() {
         </form>
       </div>
 
-      {!loading && searched && results.length === 0 && (
+      {!loading && searched && results.length === 0 && searchTerm && (
         <div className="card-glass text-center py-20 animate-slide-up">
           <div className="text-6xl mb-6">🏜️</div>
           <h3 className="text-2xl font-bold text-slate-200 mb-2">Sonuç Bulunamadı</h3>
           <p className="text-slate-400">
-            "{query}" aramasına uygun hiçbir dizi bulamadık. Lütfen farklı anahtar kelimeler deneyin.
+            "{searchTerm}" aramasına uygun hiçbir dizi bulamadık. Lütfen farklı anahtar kelimeler deneyin.
           </p>
         </div>
       )}
@@ -138,7 +132,7 @@ export default function Search() {
         </div>
       )}
 
-      {!searched && (
+      {!searchTerm && (
         <div className="grid md:grid-cols-3 gap-6 pt-12 animate-slide-up">
           {[
             { icon: '🎬', title: 'Geniş Arşiv', desc: 'Binlerce popüler ve güncel dizi verisi.' },
@@ -156,4 +150,3 @@ export default function Search() {
     </div>
   )
 }
-

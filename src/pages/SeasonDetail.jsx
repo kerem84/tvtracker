@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getShowDetails, getSeasonDetails } from '../services/tmdb'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
+import { useShowDetails, useSeasonDetails } from '../hooks/useQueries'
 import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
-import { getImageUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
+import { getImageUrl, WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
 
 export default function SeasonDetail() {
@@ -13,44 +13,36 @@ export default function SeasonDetail() {
   const { user } = useAuth()
   const { userShows, setUserShows, updateShow, isEpisodeWatched, addWatchedEpisode: storeAddWatched, removeWatchedEpisode: storeRemoveWatched } = useShowStore()
   const toast = useToast()
-  const [show, setShow] = useState(null)
-  const [season, setSeason] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [markingAll, setMarkingAll] = useState(false)
 
+  // React Query hooks for cached data
+  const { data: show, isLoading: showLoading } = useShowDetails(id)
+  const { data: season, isLoading: seasonLoading } = useSeasonDetails(id, num)
+
+  const [markingAll, setMarkingAll] = useState(false)
+  const loading = showLoading || seasonLoading
+
+  // Fetch user-specific data (watched episodes)
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
+    const fetchUserData = async () => {
+      if (!user || !id) return
+
       try {
-        const [showData, seasonData] = await Promise.all([
-          getShowDetails(id),
-          getSeasonDetails(id, num),
+        const [watched, shows] = await Promise.all([
+          getWatchedEpisodes(user.id, parseInt(id)),
+          userShows.length === 0 ? getUserShows(user.id) : Promise.resolve(userShows)
         ])
 
-        setShow(showData)
-        setSeason(seasonData)
-
-        // Load watched episodes and user shows for this user
-        if (user) {
-          const [watched, shows] = await Promise.all([
-            getWatchedEpisodes(user.id, parseInt(id)),
-            userShows.length === 0 ? getUserShows(user.id) : Promise.resolve(userShows)
-          ])
-
-          if (userShows.length === 0) {
-            setUserShows(shows)
-          }
-          useShowStore.getState().setWatchedEpisodes(parseInt(id), watched)
+        if (userShows.length === 0) {
+          setUserShows(shows)
         }
+        useShowStore.getState().setWatchedEpisodes(parseInt(id), watched)
       } catch (error) {
-        console.error('Error fetching season details:', error)
-      } finally {
-        setLoading(false)
+        console.error('Error fetching user data:', error)
       }
     }
 
-    fetchData()
-  }, [id, num, user])
+    fetchUserData()
+  }, [id, user, userShows.length, setUserShows])
 
   const handleToggleEpisode = async (episodeNumber) => {
     if (!user) {
