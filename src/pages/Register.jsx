@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { validateUsername } from '../utils/sanitize'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -16,6 +17,13 @@ export default function Register() {
     e.preventDefault()
     setError('')
 
+    // Validate username
+    const usernameValidation = validateUsername(username)
+    if (!usernameValidation.valid) {
+      setError(usernameValidation.error)
+      return
+    }
+
     if (password !== confirmPassword) {
       setError('Şifreler eşleşmiyor')
       return
@@ -29,7 +37,7 @@ export default function Register() {
     setLoading(true)
 
     try {
-      await signUp(email, password, username)
+      await signUp(email, password, usernameValidation.sanitized)
       navigate('/')
     } catch (err) {
       setError(err.message || 'Kayıt başarısız')

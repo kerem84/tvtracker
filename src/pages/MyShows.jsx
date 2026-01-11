@@ -87,10 +87,21 @@ export default function MyShows() {
 
       console.log(`[DEBUG] Attempting to remove show: ${tmdbShowId} for user: ${user.id}`)
 
+      // First delete from database
       await deleteUserShow(user.id, tmdbShowId)
+
+      // If successful, remove from store
       removeShow(tmdbShowId)
 
+      // Also remove from local showsData state
+      setShowsData(prev => {
+        const newData = { ...prev }
+        delete newData[tmdbShowId]
+        return newData
+      })
+
       console.log(`[DEBUG] Show ${tmdbShowId} removed successfully`)
+      toast.success('Dizi listenden başarıyla kaldırıldı')
     } catch (error) {
       console.error('[DEBUG] Error removing show:', error)
       toast.error(`Dizi kaldırılırken hata: ${error.message || error}`)

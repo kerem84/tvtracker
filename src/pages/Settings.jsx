@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { updateProfile } from '../services/supabase'
+import { validateUsername } from '../utils/sanitize'
 
 const AVATAR_STYLES = [
   'adventurer',
@@ -22,6 +23,7 @@ export default function Settings() {
   const { user, signOut } = useAuth()
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState({ type: '', text: '' })
+  const [usernameError, setUsernameError] = useState('')
 
   // Form State
   const [formData, setFormData] = useState({
@@ -45,10 +47,20 @@ export default function Settings() {
     e.preventDefault()
     setLoading(true)
     setMsg({ type: '', text: '' })
+    setUsernameError('')
+
+    // Validate username
+    const usernameValidation = validateUsername(formData.username)
+    if (!usernameValidation.valid) {
+      setUsernameError(usernameValidation.error)
+      setMsg({ type: 'error', text: usernameValidation.error })
+      setLoading(false)
+      return
+    }
 
     try {
       await updateProfile(user.id, {
-        username: formData.username,
+        username: usernameValidation.sanitized,
         avatar_url: `https://api.dicebear.com/7.x/${formData.avatarStyle}/svg?seed=${formData.avatarSeed}`,
         // Store raw avatar data for editing later
         avatar_meta: {
@@ -170,10 +182,21 @@ export default function Settings() {
                   <input
                     type="text"
                     value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-white placeholder-slate-600"
+                    onChange={(e) => {
+                      setFormData({ ...formData, username: e.target.value })
+                      setUsernameError('')
+                    }}
+                    className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 focus:outline-none focus:ring-1 transition-all text-white placeholder-slate-600 ${
+                      usernameError
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                        : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
+                    }`}
                     placeholder="Görünen isminiz"
                   />
+                  {usernameError && (
+                    <p className="text-red-400 text-xs mt-1.5">{usernameError}</p>
+                  )}
+                  <p className="text-slate-500 text-xs mt-1.5">3-20 karakter, sadece harf, rakam, _ ve -</p>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">E-posta</label>

@@ -7,6 +7,7 @@ import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes } from '.
 import { getImageUrl, getBackdropUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useToast } from '../components/common/Toast'
+import { sanitizeNote, validateNote } from '../utils/sanitize'
 
 export default function ShowDetail() {
   const { id } = useParams()
@@ -24,6 +25,7 @@ export default function ShowDetail() {
   const [isNoteOpen, setIsNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const [noteError, setNoteError] = useState('')
 
   // Fetch user-specific data (not cached by React Query since it's user-specific)
   useEffect(() => {
@@ -63,10 +65,25 @@ export default function ShowDetail() {
   }
 
   const handleSaveNote = async () => {
+    setNoteError('')
+
+    // Validate note length
+    const validation = validateNote(noteText)
+    if (!validation.valid) {
+      setNoteError(validation.error)
+      return
+    }
+
+    // Sanitize note (remove HTML)
+    const sanitized = sanitizeNote(noteText)
+
     setSavingNote(true)
     try {
-      await handleUpdateUserShow({ notes: noteText })
+      await handleUpdateUserShow({ notes: sanitized })
+      setNoteText(sanitized)
       setIsNoteOpen(false)
+    } catch (error) {
+      setNoteError('Not kaydedilemedi. Lütfen tekrar deneyin.')
     } finally {
       setSavingNote(false)
     }
@@ -367,10 +384,25 @@ export default function ShowDetail() {
               <div className="relative">
                 <textarea
                   value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
+                  onChange={(e) => {
+                    setNoteText(e.target.value)
+                    setNoteError('')
+                  }}
                   placeholder="Bu dizi hakkında ne düşünüyorsun?"
-                  className="w-full h-48 bg-slate-950/50 border border-slate-700/50 rounded-2xl p-5 text-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none resize-none transition-all placeholder:text-slate-600"
+                  maxLength={1000}
+                  className={`w-full h-48 bg-slate-950/50 border rounded-2xl p-5 text-slate-200 focus:ring-2 outline-none resize-none transition-all placeholder:text-slate-600 ${noteError
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-slate-700/50 focus:border-indigo-500 focus:ring-indigo-500/20'
+                    }`}
                 />
+                <div className="flex justify-between items-center mt-2 text-xs">
+                  {noteError ? (
+                    <p className="text-red-400">{noteError}</p>
+                  ) : (
+                    <p className="text-slate-500">Notunuzu buraya yazın (max 1000 karakter)</p>
+                  )}
+                  <p className="text-slate-500">{noteText.length}/1000</p>
+                </div>
               </div>
               <div className="flex gap-4">
                 <button
