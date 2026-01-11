@@ -19,6 +19,7 @@ export const signUp = async (email, password, username) => {
       data: {
         username,
       },
+      emailRedirectTo: 'https://tvtracker-xi.vercel.app/login',
     },
   })
 
