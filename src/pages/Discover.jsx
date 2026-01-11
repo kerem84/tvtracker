@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { addUserShow } from '../services/supabase'
 import { WATCH_STATUS } from '../utils/constants'
+import { useToast } from '../components/common/Toast'
 
 export default function Discover() {
   const [popular, setPopular] = useState([])
@@ -21,6 +22,7 @@ export default function Discover() {
   const { user } = useAuth()
   const { userShows, addShow } = useShowStore()
   const [addingId, setAddingId] = useState(null)
+  const toast = useToast()
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -101,7 +103,7 @@ export default function Discover() {
 
   const handleAddToList = async (tmdbShowId) => {
     if (!user) {
-      alert('Listeye eklemek için giriş yapmalısınız')
+      toast.warning('Listeye eklemek için giriş yapmalısınız')
       return
     }
 

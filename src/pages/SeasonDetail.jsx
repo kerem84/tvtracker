@@ -5,12 +5,14 @@ import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
+import { useToast } from '../components/common/Toast'
 
 export default function SeasonDetail() {
   const { id, num } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
   const { userShows, setUserShows, updateShow, isEpisodeWatched, addWatchedEpisode: storeAddWatched, removeWatchedEpisode: storeRemoveWatched } = useShowStore()
+  const toast = useToast()
   const [show, setShow] = useState(null)
   const [season, setSeason] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -52,7 +54,7 @@ export default function SeasonDetail() {
 
   const handleToggleEpisode = async (episodeNumber) => {
     if (!user) {
-      alert('Bölüm işaretlemek için giriş yapmalısınız')
+      toast.warning('Bölüm işaretlemek için giriş yapmalısınız')
       return
     }
 

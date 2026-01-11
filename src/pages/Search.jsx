@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { addUserShow } from '../services/supabase'
 import { WATCH_STATUS } from '../utils/constants'
+import { useToast } from '../components/common/Toast'
 
 export default function Search() {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ export default function Search() {
   const { user } = useAuth()
   const { userShows, addShow } = useShowStore()
   const [addingId, setAddingId] = useState(null)
+  const toast = useToast()
 
   const handleSearch = async (e) => {
     e.preventDefault()
@@ -37,7 +39,7 @@ export default function Search() {
 
   const handleAddToList = async (tmdbShowId) => {
     if (!user) {
-      alert('Listeye eklemek için giriş yapmalısınız')
+      toast.warning('Listeye eklemek için giriş yapmalısınız')
       return
     }
 

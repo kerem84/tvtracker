@@ -6,6 +6,7 @@ import { getShowDetails } from '../services/tmdb'
 import { WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 import ShowCard from '../components/common/ShowCard'
 import Skeleton, { ShowCardSkeleton } from '../components/common/Skeleton'
+import { useToast } from '../components/common/Toast'
 
 const STATUS_ICONS = {
   all: '📱',
@@ -26,6 +27,7 @@ export default function MyShows() {
   const [searchTerm, setSearchTerm] = useState('')
   const [removingId, setRemovingId] = useState(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const toast = useToast()
 
   useEffect(() => {
     const fetchShows = async () => {
@@ -91,7 +93,7 @@ export default function MyShows() {
       console.log(`[DEBUG] Show ${tmdbShowId} removed successfully`)
     } catch (error) {
       console.error('[DEBUG] Error removing show:', error)
-      alert(`Dizi kaldırılırken hata: ${error.message || error}`)
+      toast.error(`Dizi kaldırılırken hata: ${error.message || error}`)
 
       // Refresh list on error to ensure sync
       const shows = await getUserShows(user.id)
@@ -267,8 +269,8 @@ export default function MyShows() {
                       onClick={(e) => handleRemove(e, userShow.tmdb_show_id)}
                       disabled={removingId === userShow.tmdb_show_id}
                       className={`h-9 px-3 rounded-xl flex items-center justify-center shadow-xl transition-all active:scale-95 font-bold text-[10px] uppercase tracking-tighter whitespace-nowrap ${confirmDeleteId === userShow.tmdb_show_id
-                          ? 'bg-red-600 text-white animate-pulse'
-                          : 'bg-red-500/90 hover:bg-red-500 text-white'
+                        ? 'bg-red-600 text-white animate-pulse'
+                        : 'bg-red-500/90 hover:bg-red-500 text-white'
                         } ${removingId === userShow.tmdb_show_id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                       title={confirmDeleteId === userShow.tmdb_show_id ? "Onaylamak için tekrar tıkla" : "Listeden Kaldır"}
                     >

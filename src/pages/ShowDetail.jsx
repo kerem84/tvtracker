@@ -6,6 +6,7 @@ import { useShowStore } from '../store/showStore'
 import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes, addWatchedEpisode as supabaseAddWatched, removeWatchedEpisode as supabaseRemoveWatched } from '../services/supabase'
 import { getImageUrl, getBackdropUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
+import { useToast } from '../components/common/Toast'
 
 export default function ShowDetail() {
   const { id } = useParams()
@@ -19,6 +20,7 @@ export default function ShowDetail() {
   const [isNoteOpen, setIsNoteOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  const toast = useToast()
 
   useEffect(() => {
     const fetchShowData = async () => {
@@ -81,7 +83,7 @@ export default function ShowDetail() {
 
   const handleAddToList = async (status) => {
     if (!user) {
-      alert('Listeye eklemek için giriş yapmalısınız')
+      toast.warning('Listeye eklemek için giriş yapmalısınız')
       return
     }
 
