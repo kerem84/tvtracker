@@ -41,9 +41,9 @@ export default function Register() {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
       <div className="w-full max-w-md">
-        <div className="card">
+        <div className="card bg-[#0A0D20] border-slate-800/60 shadow-2xl">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2">📺 TV Show Tracker</h1>
+            <img src="/logo.png" alt="TV Tracker Logo" className="h-14 w-auto mx-auto mb-4" />
             <p className="text-slate-400">Hesap oluşturun</p>
           </div>
 

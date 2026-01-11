@@ -28,7 +28,7 @@ export default function Login() {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
       <div className="w-full max-w-md">
-        <div className="card">
+        <div className="card bg-[#0A0D20] border-slate-800/60 shadow-2xl">
           <div className="text-center mb-10">
             <img src="/logo.png" alt="TV Tracker Logo" className="h-14 w-auto mx-auto mb-4" />
             <p className="text-slate-400 font-medium tracking-wide">Dizilerinizi takip edin, hiçbir bölümü kaçırmayın.</p>
