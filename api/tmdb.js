@@ -14,10 +14,11 @@ export default async function handler(req, res) {
   }
 
   // Get the TMDB API key from environment variables
-  const apiKey = process.env.TMDB_API_KEY
+  // Try both common names
+  const apiKey = process.env.TMDB_API_KEY || process.env.VITE_TMDB_API_KEY
 
   if (!apiKey) {
-    console.error('TMDB_API_KEY is not set in environment variables')
+    console.error('TMDB_API_KEY or VITE_TMDB_API_KEY is not set in environment variables')
     return res.status(500).json({ error: 'Server configuration error' })
   }
 
