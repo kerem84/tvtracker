@@ -3,14 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getShowDetails, getSeasonDetails } from '../services/tmdb'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
-import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode } from '../services/supabase'
+import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 
 export default function SeasonDetail() {
   const { id, num } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { isEpisodeWatched, addWatchedEpisode: storeAddWatched, removeWatchedEpisode: storeRemoveWatched } = useShowStore()
+  const { userShows, updateShow, isEpisodeWatched, addWatchedEpisode: storeAddWatched, removeWatchedEpisode: storeRemoveWatched } = useShowStore()
   const [show, setShow] = useState(null)
   const [season, setSeason] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -58,6 +58,17 @@ export default function SeasonDetail() {
       } else {
         await addWatchedEpisode(user.id, parseInt(id), parseInt(num), episodeNumber)
         storeAddWatched(parseInt(id), parseInt(num), episodeNumber)
+
+        // Auto-update status to "watching" if it's currently "plan_to_watch"
+        const currentShow = userShows.find(s => s.tmdb_show_id === parseInt(id))
+        if (currentShow && currentShow.status === WATCH_STATUS.PLAN_TO_WATCH) {
+          try {
+            await updateUserShow(user.id, parseInt(id), { status: WATCH_STATUS.WATCHING })
+            updateShow(parseInt(id), { status: WATCH_STATUS.WATCHING })
+          } catch (err) {
+            console.error('Error auto-updating status:', err)
+          }
+        }
       }
     } catch (error) {
       console.error('Error toggling episode:', error)
@@ -74,6 +85,13 @@ export default function SeasonDetail() {
           await addWatchedEpisode(user.id, parseInt(id), parseInt(num), episode.episode_number)
           storeAddWatched(parseInt(id), parseInt(num), episode.episode_number)
         }
+      }
+
+      // After marking all, check status for the whole show
+      const currentShow = userShows.find(s => s.tmdb_show_id === parseInt(id))
+      if (currentShow && currentShow.status === WATCH_STATUS.PLAN_TO_WATCH) {
+        await updateUserShow(user.id, parseInt(id), { status: WATCH_STATUS.WATCHING })
+        updateShow(parseInt(id), { status: WATCH_STATUS.WATCHING })
       }
     } catch (error) {
       console.error('Error marking all episodes:', error)
