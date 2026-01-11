@@ -87,6 +87,9 @@ export default function ShowDetail() {
 
     setAddingToList(true)
     try {
+      // Call with separate params: (userId, tmdbShowId, status)
+      await addUserShow(user.id, parseInt(id), status)
+
       const newShow = {
         user_id: user.id,
         tmdb_show_id: parseInt(id),
@@ -94,10 +97,7 @@ export default function ShowDetail() {
         user_rating: 0,
         is_favorite: false,
         notes: '',
-        last_updated: new Date().toISOString()
       }
-
-      await addUserShow(newShow)
       setUserShow(newShow)
       useShowStore.getState().addShow(newShow)
     } catch (error) {
