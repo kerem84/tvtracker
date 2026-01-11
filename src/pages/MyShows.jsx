@@ -65,16 +65,23 @@ export default function MyShows() {
     }
   }
 
-  const handleRemove = async (tmdbShowId) => {
+  const handleRemove = async (e, tmdbShowId) => {
+    // Prevent event from bubbling up to the card/link
+    e.preventDefault()
+    e.stopPropagation()
+
     if (!confirm('Bu diziyi listeden kaldırmak istediğinizden emin misiniz?')) {
       return
     }
 
     try {
-      removeShow(tmdbShowId)
+      console.log('Removing show:', tmdbShowId)
       await deleteUserShow(user.id, tmdbShowId)
+      removeShow(tmdbShowId)
+      console.log('Show removed successfully')
     } catch (error) {
       console.error('Error removing show:', error)
+      // Refresh list on error
       const shows = await getUserShows(user.id)
       setUserShows(shows)
     }
@@ -240,7 +247,7 @@ export default function MyShows() {
                   </div>
 
                   <button
-                    onClick={() => handleRemove(userShow.tmdb_show_id)}
+                    onClick={(e) => handleRemove(e, userShow.tmdb_show_id)}
                     className="bg-red-500/90 hover:bg-red-500 backdrop-blur text-white w-7 h-7 rounded-lg flex items-center justify-center text-sm shadow-xl transition-all active:scale-90"
                     title="Listeden Kaldır"
                   >
