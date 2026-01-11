@@ -71,10 +71,23 @@ export default function MyShows() {
     }
 
     try {
-      removeShow(tmdbShowId)
+      // First delete from database
       await deleteUserShow(user.id, tmdbShowId)
+
+      // If successful, remove from store
+      removeShow(tmdbShowId)
+
+      // Also remove from local showsData state
+      setShowsData(prev => {
+        const newData = { ...prev }
+        delete newData[tmdbShowId]
+        return newData
+      })
     } catch (error) {
       console.error('Error removing show:', error)
+      alert('Dizi kaldırılırken bir hata oluştu. Lütfen tekrar deneyin.')
+
+      // Refresh shows from database in case of error
       const shows = await getUserShows(user.id)
       setUserShows(shows)
     }
@@ -228,7 +241,11 @@ export default function MyShows() {
                   <div className="bg-slate-900/90 backdrop-blur border border-slate-700/50 rounded-lg p-1.5 shadow-2xl flex items-center gap-2">
                     <select
                       value={userShow.status}
-                      onChange={(e) => handleStatusChange(userShow.tmdb_show_id, e.target.value)}
+                      onChange={(e) => {
+                        e.stopPropagation()
+                        handleStatusChange(userShow.tmdb_show_id, e.target.value)
+                      }}
+                      onClick={(e) => e.stopPropagation()}
                       className="text-[10px] font-black bg-transparent text-white outline-none cursor-pointer uppercase tracking-tighter"
                     >
                       {Object.entries(WATCH_STATUS).map(([key, value]) => (
@@ -240,7 +257,11 @@ export default function MyShows() {
                   </div>
 
                   <button
-                    onClick={() => handleRemove(userShow.tmdb_show_id)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleRemove(userShow.tmdb_show_id)
+                    }}
                     className="bg-red-500/90 hover:bg-red-500 backdrop-blur text-white w-7 h-7 rounded-lg flex items-center justify-center text-sm shadow-xl transition-all active:scale-90"
                     title="Listeden Kaldır"
                   >
