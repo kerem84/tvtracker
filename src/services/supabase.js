@@ -107,7 +107,7 @@ export const deleteUserShow = async (userId, tmdbShowId) => {
     .from('user_shows')
     .delete()
     .eq('user_id', userId)
-    .eq('tmdb_show_id', tmdbShowId)
+    .eq('tmdb_show_id', parseInt(tmdbShowId))
 
   if (error) throw error
 }

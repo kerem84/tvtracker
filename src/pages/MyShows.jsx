@@ -24,6 +24,8 @@ export default function MyShows() {
   const [filter, setFilter] = useState('all')
   const [sortBy, setSortBy] = useState('last_updated')
   const [searchTerm, setSearchTerm] = useState('')
+  const [removingId, setRemovingId] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
 
   useEffect(() => {
     const fetchShows = async () => {
@@ -66,24 +68,36 @@ export default function MyShows() {
   }
 
   const handleRemove = async (e, tmdbShowId) => {
-    // Prevent event from bubbling up to the card/link
     e.preventDefault()
     e.stopPropagation()
 
-    if (!confirm('Bu diziyi listeden kaldırmak istediğinizden emin misiniz?')) {
+    // If not in confirm state, switch to it
+    if (confirmDeleteId !== tmdbShowId) {
+      setConfirmDeleteId(tmdbShowId)
+      // Reset confirm state after 3 seconds if not clicked again
+      setTimeout(() => setConfirmDeleteId(null), 3000)
       return
     }
 
     try {
-      console.log('Removing show:', tmdbShowId)
+      setRemovingId(tmdbShowId)
+      setConfirmDeleteId(null)
+
+      console.log(`[DEBUG] Attempting to remove show: ${tmdbShowId} for user: ${user.id}`)
+
       await deleteUserShow(user.id, tmdbShowId)
       removeShow(tmdbShowId)
-      console.log('Show removed successfully')
+
+      console.log(`[DEBUG] Show ${tmdbShowId} removed successfully`)
     } catch (error) {
-      console.error('Error removing show:', error)
-      // Refresh list on error
+      console.error('[DEBUG] Error removing show:', error)
+      alert(`Dizi kaldırılırken hata: ${error.message || error}`)
+
+      // Refresh list on error to ensure sync
       const shows = await getUserShows(user.id)
       setUserShows(shows)
+    } finally {
+      setRemovingId(null)
     }
   }
 
@@ -231,30 +245,44 @@ export default function MyShows() {
                 <ShowCard show={showData} userShow={userShow} />
 
                 {/* Quick Actions Overlay */}
-                <div className="absolute top-3 left-3 right-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 translate-y-[-10px] group-hover:translate-y-0">
-                  <div className="bg-slate-900/90 backdrop-blur border border-slate-700/50 rounded-lg p-1.5 shadow-2xl flex items-center gap-2">
-                    <select
-                      value={userShow.status}
-                      onChange={(e) => handleStatusChange(userShow.tmdb_show_id, e.target.value)}
-                      className="text-[10px] font-black bg-transparent text-white outline-none cursor-pointer uppercase tracking-tighter"
-                    >
-                      {Object.entries(WATCH_STATUS).map(([key, value]) => (
-                        <option key={key} value={value} className="bg-slate-900 text-white">
-                          {STATUS_LABELS[value]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="absolute inset-0 pointer-events-none z-[60] opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <div className="absolute top-3 left-3 right-3 flex items-center gap-2 pointer-events-auto">
+                    {/* Status Change Select */}
+                    <div className="flex-1 bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-xl p-1 shadow-2xl">
+                      <select
+                        value={userShow.status}
+                        onChange={(e) => handleStatusChange(userShow.tmdb_show_id, e.target.value)}
+                        className="w-full text-[10px] font-black bg-transparent text-white outline-none cursor-pointer uppercase tracking-tighter px-2 py-1"
+                      >
+                        {Object.entries(WATCH_STATUS).map(([key, value]) => (
+                          <option key={key} value={value} className="bg-slate-900 text-white">
+                            {STATUS_LABELS[value]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <button
-                    onClick={(e) => handleRemove(e, userShow.tmdb_show_id)}
-                    className="bg-red-500/90 hover:bg-red-500 backdrop-blur text-white w-7 h-7 rounded-lg flex items-center justify-center text-sm shadow-xl transition-all active:scale-90"
-                    title="Listeden Kaldır"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                    {/* Remove/Confirm Button */}
+                    <button
+                      onClick={(e) => handleRemove(e, userShow.tmdb_show_id)}
+                      disabled={removingId === userShow.tmdb_show_id}
+                      className={`h-9 px-3 rounded-xl flex items-center justify-center shadow-xl transition-all active:scale-95 font-bold text-[10px] uppercase tracking-tighter whitespace-nowrap ${confirmDeleteId === userShow.tmdb_show_id
+                          ? 'bg-red-600 text-white animate-pulse'
+                          : 'bg-red-500/90 hover:bg-red-500 text-white'
+                        } ${removingId === userShow.tmdb_show_id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      title={confirmDeleteId === userShow.tmdb_show_id ? "Onaylamak için tekrar tıkla" : "Listeden Kaldır"}
+                    >
+                      {removingId === userShow.tmdb_show_id ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : confirmDeleteId === userShow.tmdb_show_id ? (
+                        "EMİN MİSİN?"
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             )
