@@ -35,7 +35,7 @@ export default function Settings() {
 
   // Watch URL Settings State
   const [watchUrlSettings, setWatchUrlSettings] = useState({
-    baseUrl: '',
+    baseUrl: 'https://dizipal1984.com/dizi',
     pattern: '%dizi_adi%/%sezon%-sezon/%bolum%-bolum',
   })
   const [watchUrlSaved, setWatchUrlSaved] = useState(false)

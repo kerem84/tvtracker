@@ -86,7 +86,7 @@ export const WATCH_URL_STORAGE_KEYS = {
  */
 export function getWatchUrlSettings() {
     return {
-        baseUrl: localStorage.getItem(WATCH_URL_STORAGE_KEYS.BASE_URL) || '',
+        baseUrl: localStorage.getItem(WATCH_URL_STORAGE_KEYS.BASE_URL) || 'https://dizipal1984.com/dizi',
         pattern: localStorage.getItem(WATCH_URL_STORAGE_KEYS.PATTERN) || '%dizi_adi%/%sezon%-sezon/%bolum%-bolum',
     }
 }
