@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { updateProfile } from '../services/supabase'
 import { validateUsername } from '../utils/sanitize'
+import { getWatchUrlSettings, saveWatchUrlSettings } from '../utils/watchUrl'
 
 const AVATAR_STYLES = [
   'adventurer',
@@ -32,6 +33,13 @@ export default function Settings() {
     avatarSeed: '',
   })
 
+  // Watch URL Settings State
+  const [watchUrlSettings, setWatchUrlSettings] = useState({
+    baseUrl: '',
+    pattern: '%dizi_adi%/%sezon%-sezon/%bolum%-bolum',
+  })
+  const [watchUrlSaved, setWatchUrlSaved] = useState(false)
+
   // Load initial data
   useEffect(() => {
     if (user) {
@@ -41,7 +49,17 @@ export default function Settings() {
         avatarSeed: user.user_metadata?.avatarSeed || user.email,
       })
     }
+
+    // Load watch URL settings from localStorage
+    const savedWatchSettings = getWatchUrlSettings()
+    setWatchUrlSettings(savedWatchSettings)
   }, [user])
+
+  const handleSaveWatchUrl = () => {
+    saveWatchUrlSettings(watchUrlSettings.baseUrl, watchUrlSettings.pattern)
+    setWatchUrlSaved(true)
+    setTimeout(() => setWatchUrlSaved(false), 2000)
+  }
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -150,8 +168,8 @@ export default function Settings() {
                           type="button"
                           onClick={() => setFormData({ ...formData, avatarStyle: style })}
                           className={`p-2 rounded-lg text-xs font-medium transition-all ${formData.avatarStyle === style
-                              ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-500/50'
-                              : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700'
+                            ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-500/50'
+                            : 'bg-slate-800/50 text-slate-400 hover:bg-slate-700'
                             }`}
                         >
                           {style}
@@ -186,11 +204,10 @@ export default function Settings() {
                       setFormData({ ...formData, username: e.target.value })
                       setUsernameError('')
                     }}
-                    className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 focus:outline-none focus:ring-1 transition-all text-white placeholder-slate-600 ${
-                      usernameError
+                    className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 focus:outline-none focus:ring-1 transition-all text-white placeholder-slate-600 ${usernameError
                         ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
                         : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
-                    }`}
+                      }`}
                     placeholder="Görünen isminiz"
                   />
                   {usernameError && (
@@ -226,6 +243,82 @@ export default function Settings() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Watch URL Settings Card */}
+          <div className="card-glass p-8">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <span className="w-1 h-6 bg-purple-500 rounded-full"></span>
+              İzleme Linkleri
+            </h2>
+
+            <p className="text-slate-400 text-sm mb-6">
+              Bölümlere tıkladığınızda açılacak izleme sitesinin URL formatını yapılandırın.
+            </p>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Base URL (Site Adresi)
+                </label>
+                <input
+                  type="text"
+                  value={watchUrlSettings.baseUrl}
+                  onChange={(e) => setWatchUrlSettings({ ...watchUrlSettings, baseUrl: e.target.value })}
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-slate-200 font-mono text-sm"
+                  placeholder="https://dizipal1984.com/dizi"
+                />
+                <p className="text-slate-500 text-xs mt-1.5">Sitenin temel adresi (sonunda / olmadan)</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  URL Şablonu
+                </label>
+                <input
+                  type="text"
+                  value={watchUrlSettings.pattern}
+                  onChange={(e) => setWatchUrlSettings({ ...watchUrlSettings, pattern: e.target.value })}
+                  className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all text-slate-200 font-mono text-sm"
+                  placeholder="%dizi_adi%/%sezon%-sezon/%bolum%-bolum"
+                />
+                <p className="text-slate-500 text-xs mt-1.5">
+                  Kullanılabilir değişkenler: <code className="text-purple-400">%dizi_adi%</code>, <code className="text-purple-400">%sezon%</code>, <code className="text-purple-400">%bolum%</code>
+                </p>
+              </div>
+
+              {/* Preview */}
+              {watchUrlSettings.baseUrl && (
+                <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-800">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Önizleme</p>
+                  <p className="text-purple-400 font-mono text-sm break-all">
+                    {watchUrlSettings.baseUrl}/{watchUrlSettings.pattern.replace(/%dizi_adi%/g, 'ornek-dizi').replace(/%sezon%/g, '1').replace(/%bolum%/g, '5')}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={handleSaveWatchUrl}
+                  className={`px-6 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 ${watchUrlSaved
+                      ? 'bg-green-500 text-white'
+                      : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    }`}
+                >
+                  {watchUrlSaved ? (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Kaydedildi!
+                    </>
+                  ) : (
+                    'Kaydet'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -265,6 +358,7 @@ export default function Settings() {
           </div>
 
           {/* Danger Zone */}
+
           <div className="card-glass p-8 border border-red-500/10">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-red-400">
               <span className="w-1 h-6 bg-red-500 rounded-full"></span>

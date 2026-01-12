@@ -6,6 +6,7 @@ import { useShowDetails, useSeasonDetails } from '../hooks/useQueries'
 import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
+import { generateWatchUrl, getWatchUrlSettings } from '../utils/watchUrl'
 
 export default function SeasonDetail() {
   const { id, num } = useParams()
@@ -19,7 +20,14 @@ export default function SeasonDetail() {
   const { data: season, isLoading: seasonLoading } = useSeasonDetails(id, num)
 
   const [markingAll, setMarkingAll] = useState(false)
+  const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
   const loading = showLoading || seasonLoading
+
+  // Load watch URL settings
+  useEffect(() => {
+    const settings = getWatchUrlSettings()
+    setWatchUrlConfig(settings)
+  }, [])
 
   // Fetch user-specific data (watched episodes)
   useEffect(() => {
@@ -260,18 +268,40 @@ export default function SeasonDetail() {
                   </div>
 
                   {user && (
-                    <button
-                      onClick={() => handleToggleEpisode(episode.episode_number)}
-                      className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 ${isWatched
-                        ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
-                        : 'bg-slate-800/50 border border-slate-700 text-slate-500 hover:border-indigo-500/50 hover:text-indigo-400 hover:bg-slate-800'
-                        }`}
-                      title={isWatched ? 'İzlenmedi olarak işaretle' : 'İzledi olarak işaretle'}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-7 w-7 transition-transform ${isWatched ? 'scale-110' : 'group-hover:scale-110'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* Watch Button */}
+                      {watchUrlConfig.baseUrl && (
+                        <a
+                          href={generateWatchUrl(watchUrlConfig.baseUrl, watchUrlConfig.pattern, {
+                            showName: show?.name || '',
+                            season: parseInt(num),
+                            episode: episode.episode_number
+                          })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white hover:shadow-lg hover:shadow-purple-500/20"
+                          title="Bölümü izle"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </a>
+                      )}
+
+                      {/* Mark as Watched Button */}
+                      <button
+                        onClick={() => handleToggleEpisode(episode.episode_number)}
+                        className={`flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 ${isWatched
+                          ? 'bg-green-500 text-white shadow-lg shadow-green-500/20'
+                          : 'bg-slate-800/50 border border-slate-700 text-slate-500 hover:border-indigo-500/50 hover:text-indigo-400 hover:bg-slate-800'
+                          }`}
+                        title={isWatched ? 'İzlenmedi olarak işaretle' : 'İzledi olarak işaretle'}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className={`h-7 w-7 transition-transform ${isWatched ? 'scale-110' : 'group-hover:scale-110'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
