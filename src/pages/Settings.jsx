@@ -90,9 +90,7 @@ export default function Settings() {
       // Update local storage or trigger re-fetch if needed (Supabase auth listener usually handles this)
       setMsg({ type: 'success', text: 'Profil başarıyla güncellendi!' })
 
-      // Force reload to reflect changes in Navbar (simple way)
-      setTimeout(() => window.location.reload(), 1000)
-
+      // No need to reload, React state and Supabase auth listener will handle Navbar update
     } catch (error) {
       console.error('Profile update error:', error)
       setMsg({ type: 'error', text: 'Güncelleme başarısız oldu.' })
@@ -205,8 +203,8 @@ export default function Settings() {
                       setUsernameError('')
                     }}
                     className={`w-full bg-slate-900/50 border rounded-xl px-4 py-3 focus:outline-none focus:ring-1 transition-all text-white placeholder-slate-600 ${usernameError
-                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                        : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
+                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                      : 'border-slate-700 focus:border-indigo-500 focus:ring-indigo-500'
                       }`}
                     placeholder="Görünen isminiz"
                   />
@@ -302,8 +300,8 @@ export default function Settings() {
                   type="button"
                   onClick={handleSaveWatchUrl}
                   className={`px-6 py-2.5 font-bold rounded-xl transition-all flex items-center gap-2 ${watchUrlSaved
-                      ? 'bg-green-500 text-white'
-                      : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30'
                     }`}
                 >
                   {watchUrlSaved ? (
