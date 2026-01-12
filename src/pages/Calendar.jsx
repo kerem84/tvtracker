@@ -5,6 +5,7 @@ import { getUserShows, getWatchedEpisodes, addWatchedEpisode } from '../services
 import { getAiringToday, getOnTheAir, getSeasonDetails, getShowDetails } from '../services/tmdb'
 import ShowCard from '../components/common/ShowCard'
 import Loader from '../components/common/Loader'
+import { generateWatchUrl, getWatchUrlSettings, getCustomWatchSlug } from '../utils/watchUrl'
 
 export default function Calendar() {
     const { user } = useAuth()
@@ -14,6 +15,8 @@ export default function Calendar() {
     const [loading, setLoading] = useState(true)
     const [markingId, setMarkingId] = useState(null)
     const [expandedShows, setExpandedShows] = useState({})
+    const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
+    const [customSlugs, setCustomSlugs] = useState({})
 
     useEffect(() => {
         const fetchData = async () => {
@@ -100,6 +103,17 @@ export default function Calendar() {
                 const expanded = {}
                 Object.keys(showsMap).forEach(name => expanded[name] = true)
                 setExpandedShows(expanded)
+
+                // Load watch URL settings
+                setWatchUrlConfig(getWatchUrlSettings())
+
+                // Load custom slugs for all shows
+                const slugs = {}
+                Object.values(showsMap).forEach(showData => {
+                    const slug = getCustomWatchSlug(showData.showId)
+                    if (slug) slugs[showData.showId] = slug
+                })
+                setCustomSlugs(slugs)
 
             } catch (error) {
                 console.error('Error fetching calendar data:', error)
@@ -290,17 +304,40 @@ export default function Calendar() {
                                                 )}
                                             </div>
 
-                                            {/* Action Button */}
-                                            <button
-                                                onClick={() => handleMarkAsWatched(episode)}
-                                                disabled={markingId === episode.id}
-                                                className="w-10 h-10 rounded-full bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-green-500/30 active:scale-95 self-center"
-                                                title="İzlendi olarak işaretle"
-                                            >
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            </button>
+                                            {/* Action Buttons */}
+                                            <div className="flex items-center gap-2 self-center flex-shrink-0">
+                                                {/* Watch Button */}
+                                                {watchUrlConfig.baseUrl && (
+                                                    <a
+                                                        href={generateWatchUrl(watchUrlConfig.baseUrl, watchUrlConfig.pattern, {
+                                                            showName: episode.showName,
+                                                            season: episode.seasonNumber,
+                                                            episode: episode.episodeNumber,
+                                                            customSlug: customSlugs[episode.showId]
+                                                        })}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="w-10 h-10 rounded-full bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-purple-500/30 active:scale-95"
+                                                        title="Bölümü izle"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                                            <path d="M8 5v14l11-7z" />
+                                                        </svg>
+                                                    </a>
+                                                )}
+
+                                                {/* Mark as Watched Button */}
+                                                <button
+                                                    onClick={() => handleMarkAsWatched(episode)}
+                                                    disabled={markingId === episode.id}
+                                                    className="w-10 h-10 rounded-full bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-green-500/30 active:scale-95"
+                                                    title="İzlendi olarak işaretle"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
