@@ -8,6 +8,7 @@ import { getImageUrl, getBackdropUrl, WATCH_STATUS, STATUS_LABELS } from '../uti
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useToast } from '../components/common/Toast'
 import { sanitizeNote, validateNote } from '../utils/sanitize'
+import { getCustomWatchSlug, setCustomWatchSlug, slugify, getWatchUrlSettings } from '../utils/watchUrl'
 
 export default function ShowDetail() {
   const { id } = useParams()
@@ -26,6 +27,11 @@ export default function ShowDetail() {
   const [noteText, setNoteText] = useState('')
   const [savingNote, setSavingNote] = useState(false)
   const [noteError, setNoteError] = useState('')
+
+  // Custom watch slug state
+  const [isSlugModalOpen, setIsSlugModalOpen] = useState(false)
+  const [customSlugText, setCustomSlugText] = useState('')
+  const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
 
   // Fetch user-specific data (not cached by React Query since it's user-specific)
   useEffect(() => {
@@ -50,6 +56,21 @@ export default function ShowDetail() {
 
     fetchUserData()
   }, [id, user])
+
+  // Load custom slug and watch URL settings
+  useEffect(() => {
+    if (id) {
+      const savedSlug = getCustomWatchSlug(id)
+      setCustomSlugText(savedSlug || '')
+      setWatchUrlConfig(getWatchUrlSettings())
+    }
+  }, [id])
+
+  const handleSaveCustomSlug = () => {
+    setCustomWatchSlug(id, customSlugText)
+    setIsSlugModalOpen(false)
+    toast.success('Link ayarı kaydedildi!')
+  }
 
   const handleUpdateUserShow = async (updates) => {
     if (!user || !userShow) return
@@ -282,6 +303,22 @@ export default function ShowDetail() {
                   <span className="text-sm">{userShow.notes ? 'Düzenle' : 'Ekle'}</span>
                 </div>
               </button>
+
+              {/* Custom Watch Link Card */}
+              {watchUrlConfig.baseUrl && (
+                <button
+                  onClick={() => setIsSlugModalOpen(true)}
+                  className="flex flex-col items-center justify-center gap-3 w-40 h-[92px] bg-purple-500/5 backdrop-blur-md rounded-2xl border border-purple-500/20 hover:bg-purple-500/10 hover:border-purple-500/40 transition-all duration-300 group"
+                >
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black group-hover:text-purple-400 transition-colors">Link Ayarı</span>
+                  <div className="flex items-center gap-2 text-purple-400 font-bold">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                    </svg>
+                    <span className="text-sm">{customSlugText ? 'Düzenle' : 'Ayarla'}</span>
+                  </div>
+                </button>
+              )}
             </div>
           )}
 
@@ -391,8 +428,8 @@ export default function ShowDetail() {
                   placeholder="Bu dizi hakkında ne düşünüyorsun?"
                   maxLength={1000}
                   className={`w-full h-48 bg-slate-950/50 border rounded-2xl p-5 text-slate-200 focus:ring-2 outline-none resize-none transition-all placeholder:text-slate-600 ${noteError
-                      ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-                      : 'border-slate-700/50 focus:border-indigo-500 focus:ring-indigo-500/20'
+                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                    : 'border-slate-700/50 focus:border-indigo-500 focus:ring-indigo-500/20'
                     }`}
                 />
                 <div className="flex justify-between items-center mt-2 text-xs">
@@ -414,6 +451,71 @@ export default function ShowDetail() {
                 </button>
                 <button
                   onClick={() => setIsNoteOpen(false)}
+                  className="btn-secondary flex-1 h-14 rounded-2xl font-bold"
+                >
+                  İptal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Slug Modal */}
+      {isSlugModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-slide-up">
+            <div className="px-8 py-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/20">
+              <h3 className="font-black text-xl gradient-text">Link Ayarı</h3>
+              <button
+                onClick={() => setIsSlugModalOpen(false)}
+                className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all text-2xl font-light"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-8 space-y-6">
+              <div>
+                <p className="text-slate-400 text-sm mb-4">
+                  Bu dizi için özel bir URL slug'ı belirleyin. Boş bırakırsanız otomatik oluşturulur.
+                </p>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Özel Slug
+                </label>
+                <input
+                  type="text"
+                  value={customSlugText}
+                  onChange={(e) => setCustomSlugText(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all font-mono"
+                  placeholder={slugify(show?.name || '')}
+                />
+                <p className="text-slate-500 text-xs mt-2">
+                  Örnek: <code className="text-purple-400">dexter-resurrection</code>
+                </p>
+              </div>
+
+              {/* Preview */}
+              {watchUrlConfig.baseUrl && (
+                <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Önizleme</p>
+                  <p className="text-purple-400 font-mono text-sm break-all">
+                    {watchUrlConfig.baseUrl}/{watchUrlConfig.pattern
+                      .replace(/%dizi_adi%/g, customSlugText || slugify(show?.name || 'dizi-adi'))
+                      .replace(/%sezon%/g, '1')
+                      .replace(/%bolum%/g, '1')}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <button
+                  onClick={handleSaveCustomSlug}
+                  className="flex-1 h-14 rounded-2xl font-black text-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white shadow-lg shadow-purple-500/20 transition-all"
+                >
+                  Kaydet
+                </button>
+                <button
+                  onClick={() => setIsSlugModalOpen(false)}
                   className="btn-secondary flex-1 h-14 rounded-2xl font-bold"
                 >
                   İptal

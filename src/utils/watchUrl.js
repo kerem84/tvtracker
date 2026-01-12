@@ -45,18 +45,21 @@ export function slugify(text) {
  * @param {string} baseUrl - Base URL (e.g., "https://dizipal1984.com/dizi")
  * @param {string} pattern - URL pattern with placeholders (e.g., "%dizi_adi%/%sezon%-sezon/%bolum%-bolum")
  * @param {Object} params - Parameters to replace placeholders
- * @param {string} params.showName - Name of the show
+ * @param {string} params.showName - Name of the show (used if no customSlug provided)
  * @param {number} params.season - Season number
  * @param {number} params.episode - Episode number
+ * @param {string} [params.customSlug] - Optional custom slug to use instead of auto-generated
  * @returns {string|null} Generated URL or null if configuration is incomplete
  */
 export function generateWatchUrl(baseUrl, pattern, params) {
     if (!baseUrl || !pattern) return null
 
-    const { showName, season, episode } = params
-    if (!showName || season === undefined || episode === undefined) return null
+    const { showName, season, episode, customSlug } = params
+    if (season === undefined || episode === undefined) return null
+    if (!customSlug && !showName) return null
 
-    const showSlug = slugify(showName)
+    // Use custom slug if provided, otherwise auto-generate from show name
+    const showSlug = customSlug || slugify(showName)
 
     let url = pattern
         .replace(/%dizi_adi%/g, showSlug)
@@ -74,6 +77,7 @@ export function generateWatchUrl(baseUrl, pattern, params) {
 export const WATCH_URL_STORAGE_KEYS = {
     BASE_URL: 'watchUrl_baseUrl',
     PATTERN: 'watchUrl_pattern',
+    CUSTOM_SLUGS: 'watchUrl_customSlugs',
 }
 
 /**
@@ -95,4 +99,42 @@ export function getWatchUrlSettings() {
 export function saveWatchUrlSettings(baseUrl, pattern) {
     localStorage.setItem(WATCH_URL_STORAGE_KEYS.BASE_URL, baseUrl)
     localStorage.setItem(WATCH_URL_STORAGE_KEYS.PATTERN, pattern)
+}
+
+/**
+ * Get custom watch slug for a specific show
+ * @param {number|string} showId - TMDB show ID
+ * @returns {string|null} Custom slug or null if not set
+ */
+export function getCustomWatchSlug(showId) {
+    try {
+        const slugsJson = localStorage.getItem(WATCH_URL_STORAGE_KEYS.CUSTOM_SLUGS)
+        if (!slugsJson) return null
+        const slugs = JSON.parse(slugsJson)
+        return slugs[String(showId)] || null
+    } catch {
+        return null
+    }
+}
+
+/**
+ * Save custom watch slug for a specific show
+ * @param {number|string} showId - TMDB show ID
+ * @param {string} slug - Custom slug (empty string to remove)
+ */
+export function setCustomWatchSlug(showId, slug) {
+    try {
+        const slugsJson = localStorage.getItem(WATCH_URL_STORAGE_KEYS.CUSTOM_SLUGS)
+        const slugs = slugsJson ? JSON.parse(slugsJson) : {}
+
+        if (slug && slug.trim()) {
+            slugs[String(showId)] = slug.trim()
+        } else {
+            delete slugs[String(showId)]
+        }
+
+        localStorage.setItem(WATCH_URL_STORAGE_KEYS.CUSTOM_SLUGS, JSON.stringify(slugs))
+    } catch (error) {
+        console.error('Error saving custom watch slug:', error)
+    }
 }

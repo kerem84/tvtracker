@@ -6,7 +6,7 @@ import { useShowDetails, useSeasonDetails } from '../hooks/useQueries'
 import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
-import { generateWatchUrl, getWatchUrlSettings } from '../utils/watchUrl'
+import { generateWatchUrl, getWatchUrlSettings, getCustomWatchSlug } from '../utils/watchUrl'
 
 export default function SeasonDetail() {
   const { id, num } = useParams()
@@ -21,13 +21,18 @@ export default function SeasonDetail() {
 
   const [markingAll, setMarkingAll] = useState(false)
   const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
+  const [customSlug, setCustomSlug] = useState(null)
   const loading = showLoading || seasonLoading
 
-  // Load watch URL settings
+  // Load watch URL settings and custom slug
   useEffect(() => {
     const settings = getWatchUrlSettings()
     setWatchUrlConfig(settings)
-  }, [])
+
+    // Load custom slug for this show
+    const savedSlug = getCustomWatchSlug(id)
+    setCustomSlug(savedSlug)
+  }, [id])
 
   // Fetch user-specific data (watched episodes)
   useEffect(() => {
@@ -275,7 +280,8 @@ export default function SeasonDetail() {
                           href={generateWatchUrl(watchUrlConfig.baseUrl, watchUrlConfig.pattern, {
                             showName: show?.name || '',
                             season: parseInt(num),
-                            episode: episode.episode_number
+                            episode: episode.episode_number,
+                            customSlug: customSlug
                           })}
                           target="_blank"
                           rel="noopener noreferrer"
