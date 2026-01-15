@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useShowStore } from '../store/showStore'
 import { useShowDetails, useSimilarShows } from '../hooks/useQueries'
-import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes } from '../services/supabase'
+import { addUserShow, getUserShows, updateUserShow, getWatchedEpisodes, updateShowWatchLinkSettings, clearShowWatchLinkSettings } from '../services/supabase'
 import { getImageUrl, getBackdropUrl, WATCH_STATUS, STATUS_LABELS } from '../utils/constants'
 import { ShowCardSkeleton } from '../components/common/Skeleton'
 import { useToast } from '../components/common/Toast'
@@ -28,10 +28,14 @@ export default function ShowDetail() {
   const [savingNote, setSavingNote] = useState(false)
   const [noteError, setNoteError] = useState('')
 
-  // Custom watch slug state
+  // Custom watch link settings state
   const [isSlugModalOpen, setIsSlugModalOpen] = useState(false)
   const [customSlugText, setCustomSlugText] = useState('')
+  const [customBaseUrlText, setCustomBaseUrlText] = useState('')
+  const [customPatternText, setCustomPatternText] = useState('')
+  const [linkNoteText, setLinkNoteText] = useState('')
   const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
+  const [savingLinkSettings, setSavingLinkSettings] = useState(false)
 
   // Fetch user-specific data (not cached by React Query since it's user-specific)
   useEffect(() => {
@@ -57,19 +61,98 @@ export default function ShowDetail() {
     fetchUserData()
   }, [id, user])
 
-  // Load custom slug and watch URL settings
+  // Load custom link settings and watch URL config
   useEffect(() => {
-    if (id) {
-      const savedSlug = getCustomWatchSlug(id)
-      setCustomSlugText(savedSlug || '')
+    if (id && userShow) {
+      // Load global settings
+      setWatchUrlConfig(getWatchUrlSettings())
+
+      // Load per-show settings from Supabase userShow object
+      setCustomSlugText(userShow.custom_slug || '')
+      setCustomBaseUrlText(userShow.custom_base_url || '')
+      setCustomPatternText(userShow.custom_url_pattern || '')
+      setLinkNoteText(userShow.link_note || '')
+    } else if (id && !userShow) {
+      // Fallback: Try to migrate from localStorage if no userShow yet
+      const legacySlug = getCustomWatchSlug(id)
+      if (legacySlug) {
+        setCustomSlugText(legacySlug)
+      }
       setWatchUrlConfig(getWatchUrlSettings())
     }
-  }, [id])
+  }, [id, userShow])
 
-  const handleSaveCustomSlug = () => {
-    setCustomWatchSlug(id, customSlugText)
-    setIsSlugModalOpen(false)
-    toast.success('Link ayarı kaydedildi!')
+  const handleSaveCustomLinkSettings = async () => {
+    if (!user || !userShow) {
+      toast.error('Kaydetmek için giriş yapmalısınız')
+      return
+    }
+
+    setSavingLinkSettings(true)
+    try {
+      const linkSettings = {
+        custom_slug: customSlugText.trim() || null,
+        custom_base_url: customBaseUrlText.trim() || null,
+        custom_url_pattern: customPatternText.trim() || null,
+        link_note: linkNoteText.trim() || null,
+      }
+
+      await updateShowWatchLinkSettings(user.id, parseInt(id), linkSettings)
+
+      // Update local userShow state
+      setUserShow({
+        ...userShow,
+        ...linkSettings,
+      })
+
+      // Remove legacy localStorage slug if exists
+      if (getCustomWatchSlug(id)) {
+        setCustomWatchSlug(id, '')
+      }
+
+      setIsSlugModalOpen(false)
+      toast.success('Link ayarları kaydedildi!')
+    } catch (error) {
+      console.error('Error saving link settings:', error)
+      toast.error('Ayarlar kaydedilemedi. Lütfen tekrar deneyin.')
+    } finally {
+      setSavingLinkSettings(false)
+    }
+  }
+
+  const handleResetToGlobal = async () => {
+    if (!user || !userShow) return
+
+    if (!confirm('Tüm özel ayarları silip global ayarlara dönmek istediğinizden emin misiniz?')) {
+      return
+    }
+
+    setSavingLinkSettings(true)
+    try {
+      await clearShowWatchLinkSettings(user.id, parseInt(id))
+
+      // Clear local state
+      setCustomSlugText('')
+      setCustomBaseUrlText('')
+      setCustomPatternText('')
+      setLinkNoteText('')
+
+      // Update userShow
+      setUserShow({
+        ...userShow,
+        custom_slug: null,
+        custom_base_url: null,
+        custom_url_pattern: null,
+        link_note: null,
+      })
+
+      toast.success('Global ayarlara dönüldü!')
+    } catch (error) {
+      console.error('Error resetting settings:', error)
+      toast.error('Sıfırlama başarısız oldu.')
+    } finally {
+      setSavingLinkSettings(false)
+    }
   }
 
   const handleUpdateUserShow = async (updates) => {
@@ -461,12 +544,15 @@ export default function ShowDetail() {
         </div>
       )}
 
-      {/* Custom Slug Modal */}
+      {/* Custom Watch Link Modal */}
       {isSlugModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-lg overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-slide-up">
+          <div className="bg-slate-900 border border-slate-700/50 rounded-3xl w-full max-w-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-slide-up max-h-[90vh] flex flex-col">
             <div className="px-8 py-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/20">
-              <h3 className="font-black text-xl gradient-text">Link Ayarı</h3>
+              <div>
+                <h3 className="font-black text-xl gradient-text">Link Ayarları</h3>
+                <p className="text-slate-500 text-xs mt-1">Bu dizi için özel izleme linki yapılandır</p>
+              </div>
               <button
                 onClick={() => setIsSlugModalOpen(false)}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-white/10 hover:text-white transition-all text-2xl font-light"
@@ -474,13 +560,20 @@ export default function ShowDetail() {
                 ×
               </button>
             </div>
-            <div className="p-8 space-y-6">
-              <div>
-                <p className="text-slate-400 text-sm mb-4">
-                  Bu dizi için özel bir URL slug'ı belirleyin. Boş bırakırsanız otomatik oluşturulur.
+
+            <div className="p-8 space-y-6 overflow-y-auto">
+              {/* Info Box */}
+              <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  Bu ayarlar <strong className="text-purple-400">sadece bu dizi</strong> için geçerlidir.
+                  Boş bıraktığınız alanlar için global ayarlar kullanılır.
                 </p>
+              </div>
+
+              {/* Custom Slug */}
+              <div>
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                  Özel Slug
+                  Özel Slug (Dizi Adı)
                 </label>
                 <input
                   type="text"
@@ -490,35 +583,119 @@ export default function ShowDetail() {
                   placeholder={slugify(show?.name || '')}
                 />
                 <p className="text-slate-500 text-xs mt-2">
-                  Örnek: <code className="text-purple-400">dexter-resurrection</code>
+                  URL'de kullanılacak dizi adı. Örnek: <code className="text-purple-400">breaking-bad</code>
                 </p>
               </div>
 
-              {/* Preview */}
-              {watchUrlConfig.baseUrl && (
-                <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Önizleme</p>
-                  <p className="text-purple-400 font-mono text-sm break-all">
-                    {watchUrlConfig.baseUrl}/{watchUrlConfig.pattern
-                      .replace(/%dizi_adi%/g, customSlugText || slugify(show?.name || 'dizi-adi'))
-                      .replace(/%sezon%/g, '1')
-                      .replace(/%bolum%/g, '1')}
-                  </p>
-                </div>
-              )}
+              {/* Custom Base URL */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Özel Base URL
+                </label>
+                <input
+                  type="text"
+                  value={customBaseUrlText}
+                  onChange={(e) => setCustomBaseUrlText(e.target.value)}
+                  className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all font-mono"
+                  placeholder={watchUrlConfig.baseUrl || 'https://dizipal1984.com/dizi'}
+                />
+                <p className="text-slate-500 text-xs mt-2">
+                  Sadece bu dizi için farklı bir site kullanmak istiyorsanız doldurun.
+                </p>
+              </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={handleSaveCustomSlug}
-                  className="flex-1 h-14 rounded-2xl font-black text-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white shadow-lg shadow-purple-500/20 transition-all"
-                >
-                  Kaydet
-                </button>
+              {/* Custom URL Pattern */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Özel URL Şablonu
+                </label>
+                <input
+                  type="text"
+                  value={customPatternText}
+                  onChange={(e) => setCustomPatternText(e.target.value)}
+                  className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all font-mono"
+                  placeholder={watchUrlConfig.pattern || '%dizi_adi%/%sezon%-sezon/%bolum%-bolum'}
+                />
+                <p className="text-slate-500 text-xs mt-2">
+                  Değişkenler: <code className="text-purple-400">%dizi_adi%</code>, <code className="text-purple-400">%sezon%</code>, <code className="text-purple-400">%bolum%</code>
+                </p>
+              </div>
+
+              {/* Link Note */}
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Not (Hatırlatma)
+                </label>
+                <textarea
+                  value={linkNoteText}
+                  onChange={(e) => setLinkNoteText(e.target.value)}
+                  maxLength={500}
+                  className="w-full h-24 bg-slate-950/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all resize-none"
+                  placeholder="Bu dizinin linkiyle ilgili hatırlamak istediğiniz bir şey var mı?"
+                />
+                <div className="flex justify-between items-center mt-2 text-xs">
+                  <p className="text-slate-500">Kendine not bırak (opsiyonel)</p>
+                  <p className="text-slate-500">{linkNoteText.length}/500</p>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div className="p-4 bg-slate-950/50 rounded-xl border border-slate-800">
+                <div className="flex items-start justify-between mb-2">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Önizleme</p>
+                  {(customSlugText || customBaseUrlText || customPatternText) && (
+                    <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30">
+                      Özel Ayar Aktif
+                    </span>
+                  )}
+                </div>
+                <p className="text-purple-400 font-mono text-sm break-all">
+                  {(customBaseUrlText || watchUrlConfig.baseUrl)}/
+                  {(customPatternText || watchUrlConfig.pattern)
+                    .replace(/%dizi_adi%/g, customSlugText || slugify(show?.name || 'dizi-adi'))
+                    .replace(/%sezon%/g, '1')
+                    .replace(/%bolum%/g, '1')}
+                </p>
+
+                {/* Show note preview if exists */}
+                {linkNoteText && (
+                  <div className="mt-3 pt-3 border-t border-slate-800">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Notun:</p>
+                    <p className="text-slate-400 text-sm italic">{linkNoteText}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer with actions */}
+            <div className="px-8 py-6 border-t border-slate-700/50 bg-slate-800/20 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={handleResetToGlobal}
+                disabled={savingLinkSettings}
+                className="px-6 py-3 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 font-bold rounded-xl border border-slate-700 transition-all disabled:opacity-50"
+              >
+                Global Ayarlara Dön
+              </button>
+              <div className="flex gap-3 flex-1">
                 <button
                   onClick={() => setIsSlugModalOpen(false)}
-                  className="btn-secondary flex-1 h-14 rounded-2xl font-bold"
+                  className="flex-1 h-12 rounded-xl font-bold bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 border border-slate-700 transition-all"
                 >
                   İptal
+                </button>
+                <button
+                  onClick={handleSaveCustomLinkSettings}
+                  disabled={savingLinkSettings}
+                  className="flex-1 h-12 rounded-xl font-black text-lg bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white shadow-lg shadow-purple-500/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {savingLinkSettings ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Kaydediliyor...
+                    </>
+                  ) : (
+                    'Kaydet'
+                  )}
                 </button>
               </div>
             </div>

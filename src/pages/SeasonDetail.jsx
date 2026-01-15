@@ -6,7 +6,7 @@ import { useShowDetails, useSeasonDetails } from '../hooks/useQueries'
 import { addWatchedEpisode, getWatchedEpisodes, removeWatchedEpisode, updateUserShow, getUserShows } from '../services/supabase'
 import { getImageUrl, WATCH_STATUS } from '../utils/constants'
 import { useToast } from '../components/common/Toast'
-import { generateWatchUrl, getWatchUrlSettings, getCustomWatchSlug } from '../utils/watchUrl'
+import { generateWatchUrlWithOverrides, getShowWatchSettings } from '../utils/watchUrl'
 
 export default function SeasonDetail() {
   const { id, num } = useParams()
@@ -20,19 +20,7 @@ export default function SeasonDetail() {
   const { data: season, isLoading: seasonLoading } = useSeasonDetails(id, num)
 
   const [markingAll, setMarkingAll] = useState(false)
-  const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
-  const [customSlug, setCustomSlug] = useState(null)
   const loading = showLoading || seasonLoading
-
-  // Load watch URL settings and custom slug
-  useEffect(() => {
-    const settings = getWatchUrlSettings()
-    setWatchUrlConfig(settings)
-
-    // Load custom slug for this show
-    const savedSlug = getCustomWatchSlug(id)
-    setCustomSlug(savedSlug)
-  }, [id])
 
   // Fetch user-specific data (watched episodes)
   useEffect(() => {
@@ -275,24 +263,28 @@ export default function SeasonDetail() {
                   {user && (
                     <div className="flex items-center gap-2">
                       {/* Watch Button */}
-                      {watchUrlConfig.baseUrl && (
-                        <a
-                          href={generateWatchUrl(watchUrlConfig.baseUrl, watchUrlConfig.pattern, {
-                            showName: show?.name || '',
-                            season: parseInt(num),
-                            episode: episode.episode_number,
-                            customSlug: customSlug
-                          })}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white hover:shadow-lg hover:shadow-purple-500/20"
-                          title="Bölümü izle"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        </a>
-                      )}
+                      {(() => {
+                        const currentUserShow = userShows.find(s => s.tmdb_show_id === parseInt(id))
+                        const watchUrl = generateWatchUrlWithOverrides({
+                          showName: show?.name || '',
+                          season: parseInt(num),
+                          episode: episode.episode_number,
+                          userShow: currentUserShow
+                        })
+                        return watchUrl ? (
+                          <a
+                            href={watchUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-shrink-0 w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 active:scale-90 bg-purple-500/20 border border-purple-500/30 text-purple-400 hover:bg-purple-500 hover:text-white hover:shadow-lg hover:shadow-purple-500/20"
+                            title="Bölümü izle"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </a>
+                        ) : null
+                      })()}
 
                       {/* Mark as Watched Button */}
                       <button

@@ -217,3 +217,47 @@ export const updateProfile = async (userId, updates) => {
   if (error) throw error
   return data
 }
+
+/**
+ * Update custom watch link settings for a specific show
+ * @param {string} userId - User ID
+ * @param {number} tmdbShowId - TMDB Show ID
+ * @param {Object} linkSettings - Link settings object
+ * @param {string|null} linkSettings.custom_slug - Custom slug override
+ * @param {string|null} linkSettings.custom_base_url - Custom base URL override
+ * @param {string|null} linkSettings.custom_url_pattern - Custom pattern override
+ * @param {string|null} linkSettings.link_note - Helper note for this show
+ */
+export const updateShowWatchLinkSettings = async (userId, tmdbShowId, linkSettings) => {
+  const { custom_slug, custom_base_url, custom_url_pattern, link_note } = linkSettings
+
+  const updates = {
+    custom_slug: custom_slug || null,
+    custom_base_url: custom_base_url || null,
+    custom_url_pattern: custom_url_pattern || null,
+    link_note: link_note || null,
+    updated_at: new Date().toISOString(),
+  }
+
+  const { data, error } = await supabase
+    .from('user_shows')
+    .update(updates)
+    .eq('user_id', userId)
+    .eq('tmdb_show_id', tmdbShowId)
+    .select()
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Clear all custom watch link settings for a show (reset to global)
+ */
+export const clearShowWatchLinkSettings = async (userId, tmdbShowId) => {
+  return updateShowWatchLinkSettings(userId, tmdbShowId, {
+    custom_slug: null,
+    custom_base_url: null,
+    custom_url_pattern: null,
+    link_note: null,
+  })
+}

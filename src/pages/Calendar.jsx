@@ -5,7 +5,7 @@ import { getUserShows, getWatchedEpisodes, addWatchedEpisode } from '../services
 import { getAiringToday, getOnTheAir, getSeasonDetails, getShowDetails } from '../services/tmdb'
 import ShowCard from '../components/common/ShowCard'
 import Loader from '../components/common/Loader'
-import { generateWatchUrl, getWatchUrlSettings, getCustomWatchSlug } from '../utils/watchUrl'
+import { generateWatchUrlWithOverrides, getWatchUrlSettings } from '../utils/watchUrl'
 
 export default function Calendar() {
     const { user } = useAuth()
@@ -16,7 +16,7 @@ export default function Calendar() {
     const [markingId, setMarkingId] = useState(null)
     const [expandedShows, setExpandedShows] = useState({})
     const [watchUrlConfig, setWatchUrlConfig] = useState({ baseUrl: '', pattern: '' })
-    const [customSlugs, setCustomSlugs] = useState({})
+    const [userShows, setUserShows] = useState([])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -31,7 +31,8 @@ export default function Calendar() {
                 setAiringToday(todayData.results || [])
                 setOnTheAir(onAirData.results || [])
 
-                const userShows = await getUserShows(user.id)
+                const fetchedUserShows = await getUserShows(user.id)
+                setUserShows(fetchedUserShows)
                 const watchedEpisodes = await getWatchedEpisodes(user.id)
 
                 const watchedMap = new Set(
@@ -41,7 +42,7 @@ export default function Calendar() {
                 const showsMap = {}
                 const today = new Date().toISOString().split('T')[0]
 
-                for (const userShow of userShows) {
+                for (const userShow of fetchedUserShows) {
                     try {
                         const showDetails = await getShowDetails(userShow.tmdb_show_id)
                         if (!showDetails) continue
@@ -106,14 +107,6 @@ export default function Calendar() {
 
                 // Load watch URL settings
                 setWatchUrlConfig(getWatchUrlSettings())
-
-                // Load custom slugs for all shows
-                const slugs = {}
-                Object.values(showsMap).forEach(showData => {
-                    const slug = getCustomWatchSlug(showData.showId)
-                    if (slug) slugs[showData.showId] = slug
-                })
-                setCustomSlugs(slugs)
 
             } catch (error) {
                 console.error('Error fetching calendar data:', error)
@@ -309,11 +302,11 @@ export default function Calendar() {
                                                 {/* Watch Button */}
                                                 {watchUrlConfig.baseUrl && (
                                                     <a
-                                                        href={generateWatchUrl(watchUrlConfig.baseUrl, watchUrlConfig.pattern, {
+                                                        href={generateWatchUrlWithOverrides({
                                                             showName: episode.showName,
                                                             season: episode.seasonNumber,
                                                             episode: episode.episodeNumber,
-                                                            customSlug: customSlugs[episode.showId]
+                                                            userShow: userShows.find(s => s.tmdb_show_id === episode.showId)
                                                         })}
                                                         target="_blank"
                                                         rel="noopener noreferrer"

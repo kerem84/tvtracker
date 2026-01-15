@@ -138,3 +138,69 @@ export function setCustomWatchSlug(showId, slug) {
         console.error('Error saving custom watch slug:', error)
     }
 }
+
+/**
+ * Get merged watch settings for a specific show
+ * Combines global settings with per-show overrides
+ * @param {Object} userShow - User show object from Supabase with custom fields
+ * @returns {Object} Merged settings object { baseUrl, pattern, slug, note }
+ */
+export function getShowWatchSettings(userShow) {
+    const globalSettings = getWatchUrlSettings()
+
+    return {
+        baseUrl: userShow?.custom_base_url || globalSettings.baseUrl,
+        pattern: userShow?.custom_url_pattern || globalSettings.pattern,
+        slug: userShow?.custom_slug || null,
+        note: userShow?.link_note || null,
+    }
+}
+
+/**
+ * Check if a show has any custom overrides
+ * @param {Object} userShow - User show object from Supabase
+ * @returns {boolean} True if any custom settings exist
+ */
+export function hasCustomWatchSettings(userShow) {
+    return !!(
+        userShow?.custom_slug ||
+        userShow?.custom_base_url ||
+        userShow?.custom_url_pattern ||
+        userShow?.link_note
+    )
+}
+
+/**
+ * Generate watch URL with optional per-show settings
+ * Enhanced version that accepts userShow for per-show overrides
+ * @param {Object} params - Parameters object
+ * @param {string} params.showName - Name of the show
+ * @param {number} params.season - Season number
+ * @param {number} params.episode - Episode number
+ * @param {Object} [params.userShow] - Optional userShow object with custom settings
+ * @returns {string|null} Generated URL or null if configuration is incomplete
+ */
+export function generateWatchUrlWithOverrides(params) {
+    const { showName, season, episode, userShow } = params
+
+    let baseUrl, pattern, customSlug
+
+    if (userShow) {
+        const merged = getShowWatchSettings(userShow)
+        baseUrl = merged.baseUrl
+        pattern = merged.pattern
+        customSlug = merged.slug
+    } else {
+        const global = getWatchUrlSettings()
+        baseUrl = global.baseUrl
+        pattern = global.pattern
+        customSlug = null
+    }
+
+    return generateWatchUrl(baseUrl, pattern, {
+        showName,
+        season,
+        episode,
+        customSlug,
+    })
+}
