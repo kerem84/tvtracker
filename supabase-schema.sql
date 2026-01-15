@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS user_shows (
     user_rating DECIMAL(3,1) CHECK (user_rating >= 0 AND user_rating <= 10),
     notes TEXT,
     is_favorite BOOLEAN DEFAULT FALSE,
+    custom_slug TEXT,
+    custom_base_url TEXT,
+    custom_url_pattern TEXT,
+    link_note TEXT,
     added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, tmdb_show_id)
